@@ -39,6 +39,12 @@ export default function useWebSocket(url) {
     };
   }, [url]);
 
+  const sendMessage = useCallback((data) => {
+    if (globalWs && globalWs.readyState === WebSocket.OPEN) {
+      globalWs.send(JSON.stringify(data));
+    }
+  }, []);
+
   useEffect(() => {
     connect();
     return () => {
@@ -52,5 +58,5 @@ export default function useWebSocket(url) {
     return () => subscribers.delete(callback);
   }, []);
 
-  return { isConnected, subscribe };
+  return { isConnected, subscribe, sendMessage };
 }

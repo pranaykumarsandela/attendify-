@@ -1,39 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import client from '../api/client';
 import useWebSocket from '../hooks/useWebSocket';
 
 export default function CameraFeed({ subjectId }) {
   const [isStreaming, setIsStreaming] = useState(false);
-  const [frameSrc, setFrameSrc] = useState(null);
   const [statusMessage, setStatusMessage] = useState("Camera offline");
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
   
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
-  const { isConnected, subscribe } = useWebSocket(`${wsUrl}/api/camera/stream`);
+  const { isConnected, subscribe, sendMessage } = useWebSocket(`${wsUrl}/api/camera/stream`);
 
+  // Handle incoming messages from backend
   useEffect(() => {
     const unsubscribe = subscribe((data) => {
-      if (!isStreaming) return; // Ignore events if camera is toggled off locally
+      if (!isStreaming) return;
 
-      if (data.type === 'frame') {
-        setFrameSrc(`data:image/jpeg;base64,${data.data}`);
-        // Only reset status message if we haven't recognized someone in the last 2 seconds
-        if (!window.statusTimeout) {
-            setStatusMessage("Live monitoring active");
-        }
-      } else if (data.type === 'detected') {
+      if (data.type === 'detected') {
         setStatusMessage(`✓ ${data.roll_no} recognized — ${(data.confidence * 100).toFixed(1)}%`);
         
         // Keep message for 2 seconds
         if (window.statusTimeout) clearTimeout(window.statusTimeout);
         window.statusTimeout = setTimeout(() => {
             window.statusTimeout = null;
+            setStatusMessage("Live monitoring active");
         }, 2000);
         
-        // Also mark attendance via API
+        // Mark attendance via API
         client.post('/api/attendance/mark', {
           roll_no: data.roll_no,
           subject_id: subjectId,
-          period: 1, // Mock period
+          period: 1, 
           confidence: data.confidence
         }).catch(console.error);
       } else if (data.type === 'unknown') {
@@ -44,25 +42,64 @@ export default function CameraFeed({ subjectId }) {
     return unsubscribe;
   }, [subscribe, isStreaming, subjectId]);
 
+  // Capture and send frames
   useEffect(() => {
-    // Cleanup on unmount
+    let intervalId = null;
+
+    if (isStreaming && isConnected && videoRef.current) {
+      intervalId = setInterval(() => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const ctx = canvas.getContext('2d');
+          canvas.width = 640;
+          canvas.height = 480;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to base64 jpeg
+          const frameData = canvas.toDataURL('image/jpeg', 0.6); // 0.6 quality
+          const base64Data = frameData.split(',')[1];
+          
+          sendMessage({
+            type: 'frame',
+            data: base64Data,
+            subject_id: subjectId
+          });
+        }
+      }, 200); // Send frame every 200ms (5 fps)
+    }
+
     return () => {
-      if (isStreaming) {
-        client.post('/api/camera/stop');
-      }
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [isStreaming]);
+  }, [isStreaming, isConnected, sendMessage, subjectId]);
 
   const toggleCamera = async () => {
     if (isStreaming) {
-      await client.post('/api/camera/stop');
+      // Stop camera stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       setIsStreaming(false);
-      setFrameSrc(null);
       setStatusMessage("Camera stopped");
     } else {
-      setIsStreaming(true);
-      setStatusMessage("Initializing camera...");
-      await client.post(`/api/camera/start?subject_id=${subjectId}`);
+      try {
+        setStatusMessage("Requesting camera permission...");
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: 640, height: 480 } 
+        });
+        
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        setIsStreaming(true);
+        setStatusMessage("Live monitoring active");
+      } catch (err) {
+        console.error("Failed to access webcam:", err);
+        setStatusMessage("❌ Failed to access webcam");
+      }
     }
   };
 
@@ -86,9 +123,15 @@ export default function CameraFeed({ subjectId }) {
       </div>
       
       <div className="relative aspect-video bg-black flex items-center justify-center">
-        {frameSrc ? (
-          <img src={frameSrc} alt="Live feed" className="w-full h-full object-cover" />
-        ) : (
+        <video 
+          ref={videoRef}
+          autoPlay 
+          playsInline 
+          muted 
+          className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
+        />
+        
+        {!isStreaming && (
           <div className="text-slate-600 flex flex-col items-center">
             <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -96,6 +139,9 @@ export default function CameraFeed({ subjectId }) {
             <p className="text-sm">Camera Offline</p>
           </div>
         )}
+        
+        {/* Hidden canvas for capturing frames */}
+        <canvas ref={canvasRef} className="hidden" width="640" height="480"></canvas>
       </div>
       
       <div className="bg-slate-800 px-4 py-3 border-t border-slate-700/50">
