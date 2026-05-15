@@ -6,7 +6,9 @@ export default function CameraFeed({ subjectId }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [frameSrc, setFrameSrc] = useState(null);
   const [statusMessage, setStatusMessage] = useState("Camera offline");
-  const { isConnected, subscribe } = useWebSocket('ws://localhost:8000/api/camera/stream');
+  
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+  const { isConnected, subscribe } = useWebSocket(`${wsUrl}/api/camera/stream`);
 
   useEffect(() => {
     const unsubscribe = subscribe((data) => {
