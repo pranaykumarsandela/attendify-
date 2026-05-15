@@ -1,0 +1,20 @@
+# Ignore virtual environment
+venv/
+env/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Data
+data/embeddings/*
+data/registered_faces/*
+!data/embeddings/.gitkeep
+!data/registered_faces/.gitkeep
+
+# Models
+*.pt
+*.pkl

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  db:
+    image: ankane/pgvector:latest
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: fras_user
+      POSTGRES_PASSWORD: fras_password
+      POSTGRES_DB: fras_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
