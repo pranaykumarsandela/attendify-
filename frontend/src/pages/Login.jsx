@@ -6,7 +6,7 @@ import client from '../api/client';
 export default function Login() {
   const [role, setRole] = useState('student');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('demo123'); // pre-fill for demo
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();

@@ -51,11 +51,10 @@ export default function Register() {
         name: facName,
         email: facEmail,
         password: facPass,
-        subjects: facSubs,
-        semester: facSemester
+        subjects: facSubs
       });
       setFacSuccess("Faculty account created successfully!");
-      setFacName(''); setFacEmail(''); setFacPass(''); setFacSubs(''); setFacSemester(1);
+      setFacName(''); setFacEmail(''); setFacPass(''); setFacSubs('');
     } catch (err) {
       setFacError("Error creating faculty account.");
     } finally {
@@ -131,10 +130,11 @@ export default function Register() {
         const qRes = await client.post('/api/register/face/check-quality', formData);
         quals.push({
           blobUrl: URL.createObjectURL(blob),
-          quality: qRes.data.quality
+          quality: qRes.data.quality,
+          faceDetected: qRes.data.face_detected
         });
       } catch (e) {
-        quals.push({ blobUrl: URL.createObjectURL(blob), quality: 0 });
+        quals.push({ blobUrl: URL.createObjectURL(blob), quality: 0, faceDetected: false });
       }
       
       setCapturedBlobs([...blobs]);
@@ -147,9 +147,9 @@ export default function Register() {
 
   // STEP 4 - Submit Face
   const handleFaceSubmit = async () => {
-    const goodPhotos = qualities.filter(q => q.quality > 0.4);
+    const goodPhotos = qualities.filter(q => q.faceDetected && q.quality > 0.20);
     if (goodPhotos.length < 3) {
-      setStudentError("Please retake — move to better lighting");
+      setStudentError("Please retake — make sure your face is clearly visible, centered, and well-lit");
       return;
     }
     
@@ -304,12 +304,8 @@ export default function Register() {
                   <input type="password" required value={facPass} onChange={e => setFacPass(e.target.value)} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/30 outline-none" placeholder="••••••••" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Assigned Subjects (Names, comma separated)</label>
-                  <input type="text" required value={facSubs} onChange={e => setFacSubs(e.target.value)} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/30 outline-none" placeholder="e.g. Data Structures, Maths" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Semester for Subjects</label>
-                  <input type="number" required value={facSemester} onChange={e => setFacSemester(parseInt(e.target.value))} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/30 outline-none" min="1" max="8" />
+                  <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Assigned Subjects (format: semester:name, comma separated)</label>
+                  <input type="text" required value={facSubs} onChange={e => setFacSubs(e.target.value)} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/30 outline-none" placeholder="e.g. 5:Deep Learning, 3:Data Structures" />
                 </div>
                 <button type="submit" disabled={isFacLoading} className="w-full bg-gradient-to-r from-fuchsia-500 to-rose-600 text-white font-black py-3 rounded-xl hover:scale-[1.02] transition-all shadow-[0_0_15px_rgba(217,70,239,0.4)] disabled:opacity-50 mt-4">
                   {isFacLoading ? 'Creating...' : 'Create Faculty Account'}
@@ -443,7 +439,7 @@ export default function Register() {
                       <div key={i} className="relative group">
                         <img src={q.blobUrl} className="w-20 h-20 object-cover rounded-xl shadow-lg border border-white/20 opacity-80 group-hover:opacity-100 transition-opacity" alt={`cap-${i}`} />
                         <div className="absolute -bottom-2 -right-2 text-xs bg-black/80 rounded-full p-1 border border-white/20 shadow-lg z-10">
-                          {q.quality > 0.7 ? '🟢' : q.quality > 0.4 ? '🟡' : '🔴'}
+                          {q.faceDetected && q.quality > 0.4 ? '🟢' : q.faceDetected && q.quality > 0.20 ? '🟡' : '🔴'}
                         </div>
                         <div className="text-[10px] text-center mt-2 font-black text-white/50 bg-black/40 rounded px-1 py-0.5">
                           {(q.quality * 100).toFixed(0)}%
@@ -576,12 +572,8 @@ export default function Register() {
                     <input type="email" disabled value={editData.email} className="w-full px-4 py-2.5 bg-black/20 border border-white/5 rounded-xl text-sm font-bold text-white/50 outline-none" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Assigned Subjects (Names, comma separated)</label>
-                    <input type="text" required value={editData.subjects} onChange={e => setEditData({...editData, subjects: e.target.value})} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500" />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Semester for Subjects (Only used if creating new subjects)</label>
-                    <input type="number" value={editData.semester || 1} onChange={e => setEditData({...editData, semester: parseInt(e.target.value)})} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500" min="1" max="8" />
+                    <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">Assigned Subjects (format: semester:name, comma separated)</label>
+                    <input type="text" required value={editData.subjects} onChange={e => setEditData({...editData, subjects: e.target.value})} className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500" placeholder="e.g. 5:Deep Learning, 3:Data Structures" />
                   </div>
                   <div className="mb-4">
                     <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase tracking-wider">New Password (Leave blank to keep current)</label>

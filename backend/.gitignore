@@ -12,6 +12,7 @@ __pycache__/
 # Data
 data/embeddings/*
 data/registered_faces/*
+data/ultralytics/
 !data/embeddings/.gitkeep
 !data/registered_faces/.gitkeep
 

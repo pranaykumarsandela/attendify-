@@ -119,29 +119,38 @@ class FacultyCreate(BaseModel):
     name: str
     email: str
     password: str
-    subjects: str # Comma-separated subject names
-    semester: int
+    subjects: str # Comma-separated subject names in format "semester:subject_name" (e.g. "5:Deep Learning")
 
 @router.post("/faculty")
 async def create_faculty(data: FacultyCreate, db: AsyncSession = Depends(get_db)):
-    sub_names = [s.strip() for s in data.subjects.split(",") if s.strip()]
+    sub_items = [s.strip() for s in data.subjects.split(",") if s.strip()]
     sub_ids = []
     
-    for s_name in sub_names:
+    for item in sub_items:
+        sem = 1
+        s_name = item
+        if ":" in item:
+            parts = item.split(":", 1)
+            try:
+                sem = int(parts[0].strip())
+                s_name = parts[1].strip()
+            except ValueError:
+                sem = 1
+                s_name = item.strip()
+
         res = await db.execute(select(models.Subject).where(models.Subject.name.ilike(s_name)))
         sub = res.scalars().first()
         if not sub:
             # Create new subject if it doesn't exist
             sub = models.Subject(
                 name=s_name,
-                code=s_name[:3].upper() + "101", # auto-gen code
-                semester=data.semester,
+                code=s_name[:3].upper() + str(sem) + "01", # auto-gen code
+                semester=sem,
                 total_classes=30,
                 faculty_name=data.name
             )
             db.add(sub)
-            await db.commit()
-            await db.refresh(sub)
+            await db.flush()
         sub_ids.append(str(sub.id))
         
     fac = models.Faculty(
@@ -161,18 +170,18 @@ async def get_faculty_admin(email: str, db: AsyncSession = Depends(get_db)):
     if not fac:
         raise HTTPException(404, "Faculty not found")
         
-    # Get subject names
+    # Get subject names with semester prefix
     sub_ids = [int(i.strip()) for i in fac.subjects.split(",") if i.strip()]
-    sub_names = []
+    sub_strings = []
     if sub_ids:
         s_res = await db.execute(select(models.Subject).where(models.Subject.id.in_(sub_ids)))
         subs = s_res.scalars().all()
-        sub_names = [s.name for s in subs]
+        sub_strings = [f"{s.semester}:{s.name}" for s in subs]
         
     return {
         "name": fac.name,
         "email": fac.email,
-        "subjects": ", ".join(sub_names)
+        "subjects": ", ".join(sub_strings)
     }
 
 @router.put("/faculty/{email}")
@@ -188,16 +197,27 @@ async def update_faculty(email: str, data: FacultyCreate, db: AsyncSession = Dep
         fac.password_hash = get_password_hash(data.password)
         
     # Re-map subjects
-    sub_names = [s.strip() for s in data.subjects.split(",") if s.strip()]
+    sub_items = [s.strip() for s in data.subjects.split(",") if s.strip()]
     sub_ids = []
-    for s_name in sub_names:
+    for item in sub_items:
+        sem = 1
+        s_name = item
+        if ":" in item:
+            parts = item.split(":", 1)
+            try:
+                sem = int(parts[0].strip())
+                s_name = parts[1].strip()
+            except ValueError:
+                sem = 1
+                s_name = item.strip()
+
         s_res = await db.execute(select(models.Subject).where(models.Subject.name.ilike(s_name)))
         sub = s_res.scalars().first()
         if not sub:
             sub = models.Subject(
                 name=s_name,
-                code=s_name[:3].upper() + "101",
-                semester=data.semester,
+                code=s_name[:3].upper() + str(sem) + "01",
+                semester=sem,
                 total_classes=30,
                 faculty_name=data.name
             )

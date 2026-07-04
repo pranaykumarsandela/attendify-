@@ -1,3 +1,9 @@
+import os
+# Set config directory for Ultralytics to prevent permission denied errors in /tmp
+_data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ultralytics")
+os.makedirs(_data_dir, exist_ok=True)
+os.environ["YOLO_CONFIG_DIR"] = _data_dir
+
 import cv2
 import torch
 import numpy as np
