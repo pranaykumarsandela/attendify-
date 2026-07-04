@@ -177,9 +177,9 @@ async def camera_stream(websocket: WebSocket):
                                         
                                         if existing:
                                             # Rate limit Neon DB updates to avoid transactional locks (only update every 15s)
-                                            time_diff = datetime.now(timezone.utc) - existing.marked_at.replace(tzinfo=timezone.utc) if existing.marked_at else None
+                                            time_diff = datetime.utcnow() - existing.marked_at if existing.marked_at else None
                                             if time_diff is None or time_diff.total_seconds() > 15:
-                                                existing.marked_at = datetime.now(timezone.utc)
+                                                existing.marked_at = datetime.utcnow()
                                                 await db_session.commit()
                                                 
                                                 student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
@@ -191,7 +191,7 @@ async def camera_stream(websocket: WebSocket):
                                                     "roll_no": f['roll_no'],
                                                     "name": student_name,
                                                     "subject_id": subject_id,
-                                                    "timestamp": existing.marked_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                    "timestamp": existing.marked_at.replace(tzinfo=timezone.utc).isoformat() if existing.marked_at else datetime.now(timezone.utc).isoformat(),
                                                     "status": existing.status
                                                 })
                                         else:
@@ -202,7 +202,7 @@ async def camera_stream(websocket: WebSocket):
                                                 period=1,
                                                 status='present',
                                                 confidence=f['confidence'],
-                                                marked_at=datetime.now(timezone.utc)
+                                                marked_at=datetime.utcnow()
                                             )
                                             db_session.add(new_att)
                                             await db_session.commit()
@@ -216,7 +216,7 @@ async def camera_stream(websocket: WebSocket):
                                                 "roll_no": f['roll_no'],
                                                 "name": student_name,
                                                 "subject_id": subject_id,
-                                                "timestamp": new_att.marked_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                "timestamp": new_att.marked_at.replace(tzinfo=timezone.utc).isoformat() if new_att.marked_at else datetime.now(timezone.utc).isoformat(),
                                                 "status": "present"
                                             })
                                 except Exception as db_err:

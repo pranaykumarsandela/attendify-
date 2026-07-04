@@ -29,7 +29,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
     
     if existing:
         # Update the timestamp so the user sees the latest recognition time
-        existing.marked_at = datetime.now(timezone.utc)
+        existing.marked_at = datetime.utcnow()
         await db.commit()
         
         # Always broadcast anyway to ensure UI stays in sync if it missed it
@@ -54,7 +54,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
         period=req.period,
         status='present',
         confidence=req.confidence,
-        marked_at=datetime.now(timezone.utc)
+        marked_at=datetime.utcnow()
     )
     db.add(new_att)
     try:
