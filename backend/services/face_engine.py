@@ -16,8 +16,20 @@ class FaceEngine:
 
         # Load YOLOv8 face detection model
         # yolov8n-face is widely used for face detection with Ultralytics
+        import os
+        model_path = 'yolov8n-face.pt'
+        if not os.path.exists(model_path):
+            logger.info("Downloading yolov8n-face.pt...")
+            import urllib.request
+            try:
+                url = 'https://github.com/akanametov/yolov8-face/releases/download/v0.0.0/yolov8n-face.pt'
+                urllib.request.urlretrieve(url, model_path)
+                logger.info("Downloaded yolov8n-face.pt successfully.")
+            except Exception as e:
+                logger.error(f"Failed to download yolov8n-face.pt: {e}")
+
         try:
-            self.detector = YOLO('yolov8n-face.pt')
+            self.detector = YOLO(model_path)
             self.detector_type = 'yolo'
         except Exception as e:
             logger.warning(f"Failed to load yolov8n-face.pt, falling back to OpenCV Haar Cascade: {e}")
