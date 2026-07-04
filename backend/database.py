@@ -36,6 +36,13 @@ if DATABASE_URL:
                 # Replace hostname in netloc (handles username:password@host:port)
                 netloc = parsed.netloc.replace(hostname, ipv4)
                 DATABASE_URL = parsed._replace(netloc=netloc).geturl()
+                
+                # Pass Neon endpoint ID via server settings options to route direct IP connections
+                if "neon.tech" in hostname or "neon.tech" in DATABASE_URL:
+                    endpoint_id = hostname.split('.')[0]
+                    connect_args["server_settings"] = {
+                        "options": f"endpoint={endpoint_id}"
+                    }
         except Exception:
             pass
 
