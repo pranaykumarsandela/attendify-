@@ -3,13 +3,16 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from database import engine, Base
+from database import engine, Base, AsyncSessionLocal
 from routers import auth, students, subjects, attendance, registration, alerts, admin
 from services.camera import camera_streamer
 from services.face_engine import face_engine
 from services.notifier import manager
 from seed import seed_db
 import logging
+from sqlalchemy.future import select
+from models import Attendance, Student
+from datetime import date, datetime, timezone
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,6 +100,11 @@ async def camera_stream(websocket: WebSocket):
             if msg.get("type") == "frame":
                 base64_data = msg.get("data")
                 subject_id = msg.get("subject_id")
+                try:
+                    subject_id = int(subject_id) if subject_id is not None else None
+                except ValueError:
+                    subject_id = None
+
                 if not base64_data:
                     continue
                     
@@ -139,43 +147,82 @@ async def camera_stream(websocket: WebSocket):
                             roll_no, confidence = "spoof", 0.0
                             
                         faces_info.append({
-                            "bbox": face['bbox'],
+                            "bbox": [x1, y1, x2, y2],
                             "roll_no": roll_no,
                             "confidence": confidence,
                             "is_live": is_live
                         })
                         
-                    # Draw bounding boxes and labels on the frame
-                    for f in faces_info:
-                        x1, y1, x2, y2 = f['bbox']
-                        if f['roll_no'] == "spoof":
-                            label = "Spoof Detected"
-                            color = (0, 165, 255) # Orange
-                        elif f['roll_no'] == "unknown":
-                            label = "Unknown"
-                            color = (0, 0, 255) # Red
-                        else:
-                            label = f"{f['roll_no']} ({int(f['confidence']*100)}%)"
-                            color = (0, 255, 0) # Green
-                            
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                        cv2.putText(frame, label, (x1, max(0, y1 - 10)), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    # Send faces coordinates and labels to client for 30fps overlay rendering
+                    await websocket.send_json({
+                        "type": "faces",
+                        "faces": faces_info
+                    })
+                    
+                    # Direct database write for recognized faces
+                    if subject_id is not None:
+                        for f in faces_info:
+                            if f['roll_no'] != "unknown" and f['roll_no'] != "spoof" and f['confidence'] >= 0.50:
+                                try:
+                                    async with AsyncSessionLocal() as db_session:
+                                        # Check if already marked today for this period (default period 1)
+                                        query = select(Attendance).where(
+                                            Attendance.roll_no == f['roll_no'],
+                                            Attendance.subject_id == subject_id,
+                                            Attendance.date == date.today(),
+                                            Attendance.period == 1
+                                        )
+                                        db_res = await db_session.execute(query)
+                                        existing = db_res.scalars().first()
+                                        
+                                        if existing:
+                                            # Rate limit Neon DB updates to avoid transactional locks (only update every 15s)
+                                            time_diff = datetime.now(timezone.utc) - existing.marked_at.replace(tzinfo=timezone.utc) if existing.marked_at else None
+                                            if time_diff is None or time_diff.total_seconds() > 15:
+                                                existing.marked_at = datetime.now(timezone.utc)
+                                                await db_session.commit()
+                                                
+                                                student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
+                                                student = student_res.scalars().first()
+                                                student_name = student.name if student else "Unknown Student"
+                                                
+                                                await manager.broadcast({
+                                                    "type": "marked",
+                                                    "roll_no": f['roll_no'],
+                                                    "name": student_name,
+                                                    "subject_id": subject_id,
+                                                    "timestamp": existing.marked_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                    "status": existing.status
+                                                })
+                                        else:
+                                            new_att = Attendance(
+                                                roll_no=f['roll_no'],
+                                                subject_id=subject_id,
+                                                date=date.today(),
+                                                period=1,
+                                                status='present',
+                                                confidence=f['confidence'],
+                                                marked_at=datetime.now(timezone.utc)
+                                            )
+                                            db_session.add(new_att)
+                                            await db_session.commit()
+                                            
+                                            student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
+                                            student = student_res.scalars().first()
+                                            student_name = student.name if student else "Unknown Student"
+                                            
+                                            await manager.broadcast({
+                                                "type": "marked",
+                                                "roll_no": f['roll_no'],
+                                                "name": student_name,
+                                                "subject_id": subject_id,
+                                                "timestamp": new_att.marked_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                "status": "present"
+                                            })
+                                except Exception as db_err:
+                                    logger.error(f"Error marking attendance inside websocket loop: {db_err}")
                                     
-                    # Encode processed frame back to base64
-                    try:
-                        _, buffer = cv2.imencode('.jpg', frame)
-                        b64_frame = base64.b64encode(buffer).decode('utf-8')
-                        
-                        # Send the processed frame back to the client
-                        await websocket.send_json({
-                            "type": "frame",
-                            "data": b64_frame
-                        })
-                    except Exception as e:
-                        logger.error(f"Failed to encode or send frame: {e}")
-                        
-                    # Send identified/unknown events to client
+                    # Send identified/unknown status message triggers to client
                     for f in faces_info:
                         if f['roll_no'] != "unknown" and f['roll_no'] != "spoof":
                             await websocket.send_json({

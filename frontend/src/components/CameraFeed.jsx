@@ -5,7 +5,7 @@ import useWebSocket from '../hooks/useWebSocket';
 export default function CameraFeed({ subjectId }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Camera offline");
-  const [annotatedFrame, setAnnotatedFrame] = useState(null);
+  const [detectedFaces, setDetectedFaces] = useState([]);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -19,9 +19,15 @@ export default function CameraFeed({ subjectId }) {
     const unsubscribe = subscribe((data) => {
       if (!isStreaming) return;
 
-      if (data.type === 'frame') {
-        setAnnotatedFrame(data.data);
-        isProcessingRef.current = false;
+      if (data.type === 'faces') {
+        setDetectedFaces(data.faces);
+        isProcessingRef.current = false; // Release flow control lock immediately
+        
+        // Clear boxes if no updates received for 1 second
+        if (window.faceTimeout) clearTimeout(window.faceTimeout);
+        window.faceTimeout = setTimeout(() => {
+          setDetectedFaces([]);
+        }, 1000);
       } else if (data.type === 'detected') {
         setStatusMessage(`✓ ${data.roll_no} recognized — ${(data.confidence * 100).toFixed(1)}%`);
         
@@ -31,14 +37,6 @@ export default function CameraFeed({ subjectId }) {
             window.statusTimeout = null;
             setStatusMessage("Live monitoring active");
         }, 2000);
-        
-        // Mark attendance via API
-        client.post('/api/attendance/mark', {
-          roll_no: data.roll_no,
-          subject_id: subjectId,
-          period: 1, 
-          confidence: data.confidence
-        }).catch(console.error);
       } else if (data.type === 'unknown') {
         setStatusMessage(`⚠ Unknown face detected`);
       }
@@ -91,12 +89,13 @@ export default function CameraFeed({ subjectId }) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       setIsStreaming(false);
-      setAnnotatedFrame(null);
+      setDetectedFaces([]);
       isProcessingRef.current = false;
       setStatusMessage("Camera stopped");
     } else {
       try {
         isProcessingRef.current = false;
+        setDetectedFaces([]);
         setStatusMessage("Requesting camera permission...");
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: 640, height: 480 } 
@@ -134,15 +133,8 @@ export default function CameraFeed({ subjectId }) {
         </button>
       </div>
       
-      <div className="relative aspect-video bg-black flex items-center justify-center">
-        {isStreaming && annotatedFrame && (
-          <img 
-            src={`data:image/jpeg;base64,${annotatedFrame}`} 
-            alt="Processed Camera Feed" 
-            className="absolute inset-0 w-full h-full object-cover z-10"
-          />
-        )}
-
+      {/* 4:3 Aspect ratio container to match 640x480 webcam dimensions and prevent overlay mismatch */}
+      <div className="relative aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
         <video 
           ref={videoRef}
           autoPlay 
@@ -150,6 +142,65 @@ export default function CameraFeed({ subjectId }) {
           muted 
           className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
         />
+        
+        {/* Draw absolute green/red bounding boxes over the 30fps smooth local video feed */}
+        {isStreaming && detectedFaces.map((face, index) => {
+          const [x1, y1, x2, y2] = face.bbox;
+          // Calculate percentage coordinates relative to 480x360 canvas resolution
+          const left = `${(x1 / 480) * 100}%`;
+          const top = `${(y1 / 360) * 100}%`;
+          const width = `${((x2 - x1) / 480) * 100}%`;
+          const height = `${((y2 - y1) / 360) * 100}%`;
+          
+          const isSpoof = face.roll_no === 'spoof';
+          const isUnknown = face.roll_no === 'unknown';
+          
+          const borderColor = isSpoof ? '#f97316' : isUnknown ? '#ef4444' : '#10b981'; // Orange, Red, Emerald
+          const labelText = isSpoof 
+            ? 'Spoof Detected' 
+            : isUnknown 
+            ? 'Unknown' 
+            : `${face.roll_no} (${Math.round(face.confidence * 100)}%)`;
+
+          return (
+            <div 
+              key={index}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width,
+                height,
+                border: `3px solid ${borderColor}`,
+                borderRadius: '6px',
+                pointerEvents: 'none',
+                zIndex: 20,
+                boxShadow: `0 0 12px ${borderColor}40`,
+                transition: 'all 0.05s ease-out'
+              }}
+            >
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '-28px',
+                  left: '-3px',
+                  backgroundColor: borderColor,
+                  color: '#ffffff',
+                  fontSize: '10px',
+                  fontWeight: '900',
+                  letterSpacing: '0.05em',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {labelText}
+              </div>
+            </div>
+          );
+        })}
         
         {!isStreaming && (
           <div className="text-slate-600 flex flex-col items-center">
