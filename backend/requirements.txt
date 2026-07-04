@@ -19,3 +19,4 @@ asyncpg
 psycopg2-binary
 pgvector
 faiss-cpu
+python-dotenv
