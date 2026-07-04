@@ -14,7 +14,8 @@ export default function TeacherDashboard() {
   const [todaysRoll, setTodaysRoll] = useState([]);
   const [atRisk, setAtRisk] = useState([]);
   const [finalizing, setFinalizing] = useState(false);
-  const { subscribe } = useWebSocket('ws://localhost:8000/api/camera/stream');
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+  const { subscribe } = useWebSocket(`${wsUrl}/api/camera/stream`);
 
   useEffect(() => {
     const unsubscribe = subscribe((data) => {

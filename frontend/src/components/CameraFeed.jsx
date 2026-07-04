@@ -5,6 +5,7 @@ import useWebSocket from '../hooks/useWebSocket';
 export default function CameraFeed({ subjectId }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Camera offline");
+  const [annotatedFrame, setAnnotatedFrame] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -17,7 +18,9 @@ export default function CameraFeed({ subjectId }) {
     const unsubscribe = subscribe((data) => {
       if (!isStreaming) return;
 
-      if (data.type === 'detected') {
+      if (data.type === 'frame') {
+        setAnnotatedFrame(data.data);
+      } else if (data.type === 'detected') {
         setStatusMessage(`✓ ${data.roll_no} recognized — ${(data.confidence * 100).toFixed(1)}%`);
         
         // Keep message for 2 seconds
@@ -82,6 +85,7 @@ export default function CameraFeed({ subjectId }) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       setIsStreaming(false);
+      setAnnotatedFrame(null);
       setStatusMessage("Camera stopped");
     } else {
       try {
@@ -123,6 +127,14 @@ export default function CameraFeed({ subjectId }) {
       </div>
       
       <div className="relative aspect-video bg-black flex items-center justify-center">
+        {isStreaming && annotatedFrame && (
+          <img 
+            src={`data:image/jpeg;base64,${annotatedFrame}`} 
+            alt="Processed Camera Feed" 
+            className="absolute inset-0 w-full h-full object-cover z-10"
+          />
+        )}
+
         <video 
           ref={videoRef}
           autoPlay 

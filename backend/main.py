@@ -78,17 +78,117 @@ app.include_router(attendance.router)
 app.include_router(alerts.router)
 app.include_router(admin.router)
 
+import base64
+import numpy as np
+import cv2
+import json
+
 @app.websocket("/api/camera/stream")
 async def camera_stream(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive, listen for any client messages if needed
             data = await websocket.receive_text()
-            if data == "start":
-                camera_streamer.start(subject_id=1) # Mock subject_id if not provided
-            elif data == "stop":
-                camera_streamer.stop()
+            try:
+                msg = json.loads(data)
+            except Exception:
+                continue
+                
+            if msg.get("type") == "frame":
+                base64_data = msg.get("data")
+                subject_id = msg.get("subject_id")
+                if not base64_data:
+                    continue
+                    
+                # Decode base64 frame
+                try:
+                    img_bytes = base64.b64decode(base64_data)
+                    arr = np.frombuffer(img_bytes, np.uint8)
+                    frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                except Exception as e:
+                    logger.error(f"Failed to decode frame: {e}")
+                    continue
+                    
+                if frame is not None:
+                    # Run face detection and recognition
+                    try:
+                        detected_faces = face_engine.detect_faces(frame)
+                    except Exception as e:
+                        logger.error(f"Detection error: {e}")
+                        detected_faces = []
+                        
+                    faces_info = []
+                    for face in detected_faces:
+                        x1, y1, x2, y2 = face['bbox']
+                        crop = face['crop']
+                        
+                        # Basic liveness check
+                        try:
+                            is_live = face_engine.check_liveness(crop)
+                        except Exception:
+                            is_live = True
+                            
+                        if is_live:
+                            try:
+                                embedding = face_engine.get_embedding(crop)
+                                roll_no, confidence = face_engine.identify(embedding)
+                            except Exception as e:
+                                logger.error(f"Identification error: {e}")
+                                roll_no, confidence = "unknown", 0.0
+                        else:
+                            roll_no, confidence = "spoof", 0.0
+                            
+                        faces_info.append({
+                            "bbox": face['bbox'],
+                            "roll_no": roll_no,
+                            "confidence": confidence,
+                            "is_live": is_live
+                        })
+                        
+                    # Draw bounding boxes and labels on the frame
+                    for f in faces_info:
+                        x1, y1, x2, y2 = f['bbox']
+                        if f['roll_no'] == "spoof":
+                            label = "Spoof Detected"
+                            color = (0, 165, 255) # Orange
+                        elif f['roll_no'] == "unknown":
+                            label = "Unknown"
+                            color = (0, 0, 255) # Red
+                        else:
+                            label = f"{f['roll_no']} ({int(f['confidence']*100)}%)"
+                            color = (0, 255, 0) # Green
+                            
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                        cv2.putText(frame, label, (x1, max(0, y1 - 10)), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                                    
+                    # Encode processed frame back to base64
+                    try:
+                        _, buffer = cv2.imencode('.jpg', frame)
+                        b64_frame = base64.b64encode(buffer).decode('utf-8')
+                        
+                        # Send the processed frame back to the client
+                        await websocket.send_json({
+                            "type": "frame",
+                            "data": b64_frame
+                        })
+                    except Exception as e:
+                        logger.error(f"Failed to encode or send frame: {e}")
+                        
+                    # Send identified/unknown events to client
+                    for f in faces_info:
+                        if f['roll_no'] != "unknown" and f['roll_no'] != "spoof":
+                            await websocket.send_json({
+                                "type": "detected",
+                                "roll_no": f['roll_no'],
+                                "confidence": f['confidence'],
+                                "subject_id": subject_id
+                            })
+                        elif f['roll_no'] == "unknown":
+                            await websocket.send_json({
+                                "type": "unknown",
+                                "confidence": f['confidence']
+                            })
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

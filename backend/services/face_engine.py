@@ -62,7 +62,8 @@ class FaceEngine:
         detected_faces = []
         
         if self.detector_type == 'yolo':
-            results = self.detector(frame, verbose=False, conf=0.60, iou=0.40)
+            conf_val = float(os.getenv("YOLO_CONFIDENCE", "0.40"))
+            results = self.detector(frame, verbose=False, conf=conf_val, iou=0.40)
             boxes_to_process = []
             for result in results:
                 for box in result.boxes:
