@@ -147,10 +147,10 @@ async def camera_stream(websocket: WebSocket):
                             roll_no, confidence = "spoof", 0.0
                             
                         faces_info.append({
-                            "bbox": [x1, y1, x2, y2],
-                            "roll_no": roll_no,
-                            "confidence": confidence,
-                            "is_live": is_live
+                            "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                            "roll_no": str(roll_no),
+                            "confidence": float(confidence),
+                            "is_live": bool(is_live)
                         })
                         
                     # Send faces coordinates and labels to client for 30fps overlay rendering
