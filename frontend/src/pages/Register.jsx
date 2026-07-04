@@ -40,6 +40,14 @@ export default function Register() {
   const [editSuccess, setEditSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
+  const handleEditTypeChange = (type) => {
+    setEditType(type);
+    setEditData(null);
+    setSearchQuery('');
+    setEditError('');
+    setEditSuccess('');
+  };
+
   // Handle Faculty Submit
   const handleFacultySubmit = async (e) => {
     e.preventDefault();
@@ -486,8 +494,8 @@ export default function Register() {
           {activeTab === 'edit' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex gap-2 p-1 bg-black/40 border border-white/10 rounded-xl mb-6">
-                <button onClick={() => setEditType('student')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${editType === 'student' ? 'bg-amber-500/20 text-amber-300' : 'text-white/50 hover:text-white'}`}>Student</button>
-                <button onClick={() => setEditType('faculty')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${editType === 'faculty' ? 'bg-amber-500/20 text-amber-300' : 'text-white/50 hover:text-white'}`}>Faculty</button>
+                <button onClick={() => handleEditTypeChange('student')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${editType === 'student' ? 'bg-amber-500/20 text-amber-300' : 'text-white/50 hover:text-white'}`}>Student</button>
+                <button onClick={() => handleEditTypeChange('faculty')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${editType === 'faculty' ? 'bg-amber-500/20 text-amber-300' : 'text-white/50 hover:text-white'}`}>Faculty</button>
               </div>
 
               <form onSubmit={handleEditSearch} className="flex gap-3 max-w-md mx-auto">

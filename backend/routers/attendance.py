@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import cv2
 import numpy as np
 import os
@@ -29,7 +29,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
     
     if existing:
         # Update the timestamp so the user sees the latest recognition time
-        existing.marked_at = datetime.now()
+        existing.marked_at = datetime.now(timezone.utc)
         await db.commit()
         
         # Always broadcast anyway to ensure UI stays in sync if it missed it
@@ -42,7 +42,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
             "roll_no": req.roll_no,
             "name": student_name,
             "subject_id": req.subject_id,
-            "timestamp": existing.marked_at.isoformat(),
+            "timestamp": existing.marked_at.replace(tzinfo=timezone.utc).isoformat() if existing.marked_at else datetime.now(timezone.utc).isoformat(),
             "status": existing.status
         })
         return {"message": "Already marked (updated time)", "status": existing.status}
@@ -54,7 +54,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
         period=req.period,
         status='present',
         confidence=req.confidence,
-        marked_at=datetime.now()
+        marked_at=datetime.now(timezone.utc)
     )
     db.add(new_att)
     try:
@@ -70,7 +70,7 @@ async def mark_attendance(req: MarkAttendanceRequest, db: AsyncSession = Depends
             "roll_no": req.roll_no,
             "name": student_name,
             "subject_id": req.subject_id,
-            "timestamp": new_att.marked_at.isoformat(),
+            "timestamp": new_att.marked_at.replace(tzinfo=timezone.utc).isoformat() if new_att.marked_at else datetime.now(timezone.utc).isoformat(),
             "status": "present"
         })
     except IntegrityError:

@@ -9,6 +9,7 @@ export default function CameraFeed({ subjectId }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const isProcessingRef = useRef(false);
   
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
   const { isConnected, subscribe, sendMessage } = useWebSocket(`${wsUrl}/api/camera/stream`);
@@ -20,6 +21,7 @@ export default function CameraFeed({ subjectId }) {
 
       if (data.type === 'frame') {
         setAnnotatedFrame(data.data);
+        isProcessingRef.current = false;
       } else if (data.type === 'detected') {
         setStatusMessage(`✓ ${data.roll_no} recognized — ${(data.confidence * 100).toFixed(1)}%`);
         
@@ -45,32 +47,36 @@ export default function CameraFeed({ subjectId }) {
     return unsubscribe;
   }, [subscribe, isStreaming, subjectId]);
 
-  // Capture and send frames
+  // Capture and send frames with flow-control
   useEffect(() => {
     let intervalId = null;
 
     if (isStreaming && isConnected && videoRef.current) {
       intervalId = setInterval(() => {
+        if (isProcessingRef.current) return; // Wait for the previous frame to finish processing
+
         const video = videoRef.current;
         const canvas = canvasRef.current;
         
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
           const ctx = canvas.getContext('2d');
-          canvas.width = 640;
-          canvas.height = 480;
+          // Scale down the frame to 480x360 to decrease payload size and speed up backend detection!
+          canvas.width = 480;
+          canvas.height = 360;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
-          // Convert to base64 jpeg
-          const frameData = canvas.toDataURL('image/jpeg', 0.6); // 0.6 quality
+          // Convert to base64 jpeg with slightly lower quality for faster network transmission
+          const frameData = canvas.toDataURL('image/jpeg', 0.4); 
           const base64Data = frameData.split(',')[1];
           
+          isProcessingRef.current = true;
           sendMessage({
             type: 'frame',
             data: base64Data,
             subject_id: subjectId
           });
         }
-      }, 200); // Send frame every 200ms (5 fps)
+      }, 100); // Check/send every 100ms (up to 10 fps)
     }
 
     return () => {
@@ -86,9 +92,11 @@ export default function CameraFeed({ subjectId }) {
       }
       setIsStreaming(false);
       setAnnotatedFrame(null);
+      isProcessingRef.current = false;
       setStatusMessage("Camera stopped");
     } else {
       try {
+        isProcessingRef.current = false;
         setStatusMessage("Requesting camera permission...");
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: 640, height: 480 } 

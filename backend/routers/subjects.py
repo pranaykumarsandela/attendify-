@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import date
+from datetime import date, timezone
 from database import get_db
 from models import Attendance, Subject, Student
 
@@ -25,7 +25,7 @@ async def get_subject_attendance(subject_id: int, d: str = Query(None, alias="da
             "name": student.name,
             "status": att.status,
             "confidence": att.confidence,
-            "marked_at": att.marked_at,
+            "marked_at": att.marked_at.replace(tzinfo=timezone.utc) if att.marked_at else None,
             "camera_source": att.camera_source,
             "period": att.period
         })
