@@ -187,7 +187,7 @@ export default function Register() {
         setEditData({ ...res.data, password: '' });
       }
     } catch (err) {
-      setEditError(`Record not found for the given ${editType === 'student' ? 'Roll No' : 'Email'}.`);
+      setEditError(`Record not found for the given ${editType === 'student' ? 'Roll No or Email' : 'Email'}.`);
     }
   };
 
@@ -499,7 +499,7 @@ export default function Register() {
                   type="text" 
                   value={searchQuery} 
                   onChange={e => setSearchQuery(e.target.value)} 
-                  placeholder={editType === 'student' ? "Enter Roll Number (e.g. 21CS047)" : "Enter Faculty Email"}
+                  placeholder={editType === 'student' ? "Enter Roll Number or Email" : "Enter Faculty Email"}
                   className="flex-1 px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500" 
                   required 
                 />

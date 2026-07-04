@@ -25,9 +25,14 @@ async def get_student(roll_no: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/students/{roll_no}/attendance")
 async def get_student_attendance(roll_no: str, db: AsyncSession = Depends(get_db)):
-    # Returns all subject attendance with %
-    # Query all subjects
-    subjects_result = await db.execute(select(Subject))
+    # Query student to get their semester
+    student_res = await db.execute(select(Student).where(Student.roll_no == roll_no))
+    student = student_res.scalars().first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Returns all subject attendance with % for this student's semester
+    subjects_result = await db.execute(select(Subject).where(Subject.semester == student.semester))
     subjects = subjects_result.scalars().all()
     
     # Query attendance for this student

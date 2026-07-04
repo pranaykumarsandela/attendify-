@@ -135,7 +135,7 @@ const Landing = () => {
       <div className="dash-grid">
         <div className="dash-card">
           <div className="dc-title">Subject attendance</div>
-          <div className="subj-row"><span className="subj-name">Data Structures</span><div className="subj-bar-wrap"><div className="subj-bar mf-green" style={{width: '93%'}}></div></div><span className="subj-pct dm-green">93%</span><span className="badge-sm bg-green">Safe</span></div>
+          <div className="subj-row"><span className="subj-name">Deep Learning</span><div className="subj-bar-wrap"><div className="subj-bar mf-green" style={{width: '93%'}}></div></div><span className="subj-pct dm-green">93%</span><span className="badge-sm bg-green">Safe</span></div>
           <div className="subj-row"><span className="subj-name">DBMS</span><div className="subj-bar-wrap"><div className="subj-bar mf-green" style={{width: '80%'}}></div></div><span className="subj-pct dm-green">80%</span><span className="badge-sm bg-green">Safe</span></div>
           <div className="subj-row"><span className="subj-name">Computer Networks</span><div className="subj-bar-wrap"><div className="subj-bar mf-amber" style={{width: '70%'}}></div></div><span className="subj-pct dm-amber">70%</span><span className="badge-sm bg-amber">Low</span></div>
           <div className="subj-row"><span className="subj-name">OS Concepts</span><div className="subj-bar-wrap"><div className="subj-bar mf-green" style={{width: '87%'}}></div></div><span className="subj-pct dm-green">87%</span><span className="badge-sm bg-green">Safe</span></div>
@@ -144,7 +144,7 @@ const Landing = () => {
         </div>
         <div className="dash-card">
           <div className="dc-title">Recent activity</div>
-          <div className="ticker-item"><div className="tick-dot" style={{background: '#22c55e'}}></div><span className="tick-name">Marked present</span><span className="tick-subj">Data Structures</span><span className="tick-conf dm-green">94%</span><span className="tick-time">09:15</span></div>
+          <div className="ticker-item"><div className="tick-dot" style={{background: '#22c55e'}}></div><span className="tick-name">Marked present</span><span className="tick-subj">Deep Learning</span><span className="tick-conf dm-green">94%</span><span className="tick-time">09:15</span></div>
           <div className="ticker-item"><div className="tick-dot" style={{background: '#22c55e'}}></div><span className="tick-name">Marked present</span><span className="tick-subj">DBMS</span><span className="tick-conf dm-green">91%</span><span className="tick-time">10:20</span></div>
           <div className="ticker-item"><div className="tick-dot" style={{background: '#f87171'}}></div><span className="tick-name">Absent</span><span className="tick-subj">Software Engg.</span><span className="tick-conf dm-red">—</span><span className="tick-time">Yesterday</span></div>
           <div className="ticker-item"><div className="tick-dot" style={{background: '#fbbf24'}}></div><span className="tick-name">Late entry</span><span className="tick-subj">Computer Networks</span><span className="tick-conf dm-amber">+13m</span><span className="tick-time">Apr 18</span></div>

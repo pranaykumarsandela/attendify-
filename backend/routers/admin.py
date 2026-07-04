@@ -36,9 +36,12 @@ async def create_student(data: StudentCreate, db: AsyncSession = Depends(get_db)
     await db.commit()
     return {"message": "Student created successfully", "roll_no": student.roll_no}
 
-@router.get("/student/{roll_no}")
-async def get_student_admin(roll_no: str, db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(models.Student).where(models.Student.roll_no == roll_no.upper()))
+@router.get("/student/{query}")
+async def get_student_admin(query: str, db: AsyncSession = Depends(get_db)):
+    if "@" in query:
+        res = await db.execute(select(models.Student).where(models.Student.student_email.ilike(query)))
+    else:
+        res = await db.execute(select(models.Student).where(models.Student.roll_no == query.upper()))
     student = res.scalars().first()
     if not student:
         raise HTTPException(404, "Student not found")
