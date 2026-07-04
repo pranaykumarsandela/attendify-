@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from database import engine, Base
 from routers import auth, students, subjects, attendance, registration, alerts, admin
 from services.camera import camera_streamer
+from services.face_engine import face_engine
 from services.notifier import manager
 from seed import seed_db
 import logging
@@ -30,7 +31,6 @@ async def lifespan(app: FastAPI):
     await seed_db()
         
     # Startup Sync FAISS
-    from services.face_engine import face_engine
     import faiss
     import numpy as np
     from sqlalchemy import select
