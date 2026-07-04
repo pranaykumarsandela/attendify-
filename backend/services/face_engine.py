@@ -22,8 +22,13 @@ class FaceEngine:
             logger.info("Downloading yolov8n-face.pt...")
             import urllib.request
             try:
-                url = 'https://github.com/akanametov/yolov8-face/releases/download/v0.0.0/yolov8n-face.pt'
-                urllib.request.urlretrieve(url, model_path)
+                url = 'https://huggingface.co/junjiang/GestureFace/resolve/main/yolov8n-face.pt'
+                req = urllib.request.Request(
+                    url, 
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                with urllib.request.urlopen(req) as response, open(model_path, 'wb') as out_file:
+                    out_file.write(response.read())
                 logger.info("Downloaded yolov8n-face.pt successfully.")
             except Exception as e:
                 logger.error(f"Failed to download yolov8n-face.pt: {e}")
