@@ -165,10 +165,6 @@ export default function Login() {
               </button>
             </form>
             
-            <div className="mt-6 pt-6 border-t border-white/10 text-center">
-              <div className="inline-block bg-white/5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white/50 border border-white/10 shadow-inner">
-                Admin Credentials: venkat@college.edu / demo123 (HOD)
-              </div>
             </div>
           </div>
         </div>
