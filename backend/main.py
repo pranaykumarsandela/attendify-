@@ -94,6 +94,8 @@ async def camera_stream(websocket: WebSocket):
             data = await websocket.receive_text()
             try:
                 msg = json.loads(data)
+                if not isinstance(msg, dict):
+                    continue
             except Exception:
                 continue
                 
@@ -237,6 +239,10 @@ async def camera_stream(websocket: WebSocket):
                                 "confidence": f['confidence']
                             })
     except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error(f"Unhandled exception in websocket stream: {e}", exc_info=True)
+    finally:
         manager.disconnect(websocket)
 
 @app.post("/api/camera/start")
