@@ -155,6 +155,7 @@ async def send_custom_alert(req: CustomAlertReq, db: AsyncSession = Depends(get_
             raise HTTPException(status_code=404, detail="Student not found")
         targets = [student]
 
+    target_emails = []
     emails_sent = 0
     for st in targets:
         # Save alert in DB (always associated with student's roll_no)
@@ -166,17 +167,14 @@ async def send_custom_alert(req: CustomAlertReq, db: AsyncSession = Depends(get_
         )
         db.add(alert)
         
-        # Send Emails
-        try:
-            if req.recipient_type in ['parent', 'both'] and st.parent_email:
-                await send_email_alert(st.parent_email, req.title, req.message)
-                emails_sent += 1
-                
-            if req.recipient_type in ['student', 'both'] and st.student_email:
-                await send_email_alert(st.student_email, req.title, req.message)
-                emails_sent += 1
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"SMTP Error: {str(e)}")
+        # Collect Emails to send via frontend
+        if req.recipient_type in ['parent', 'both'] and st.parent_email:
+            target_emails.append(st.parent_email)
+            emails_sent += 1
+            
+        if req.recipient_type in ['student', 'both'] and st.student_email:
+            target_emails.append(st.student_email)
+            emails_sent += 1
 
     await db.commit()
-    return {"status": "success", "message": f"Custom alert sent to {emails_sent} recipients."}
+    return {"status": "success", "message": f"Custom alert saved. Processing {emails_sent} emails.", "emails_to_send": target_emails}

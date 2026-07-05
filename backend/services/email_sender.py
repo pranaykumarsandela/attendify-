@@ -5,36 +5,22 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
+import urllib.request
+import json
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Use environment variables, or fallback to dummy values.
-# IMPORTANT: For this to work in production, provide valid SMTP credentials.
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME", "your_email@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "your_app_password")
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec"
 
 def send_email_alert_sync(to_email: str, subject: str, message: str):
-    """Synchronous function to send email via SMTP."""
+    """Synchronous function to send email via Google Apps Script."""
     if not to_email or "@" not in to_email:
         logger.warning(f"Invalid email address: {to_email}")
         return
         
     try:
-        # Check if we're using the dummy placeholder credentials
-        if SMTP_USERNAME == "your_email@gmail.com":
-            logger.info(f"MOCK EMAIL (No SMTP configured) To: {to_email} | Subject: {subject} | Msg: {message}")
-            return
-
-        msg = MIMEMultipart()
-        msg['From'] = f"FRAS Alerts <{SMTP_USERNAME}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-
-        # HTML body with modern styling
         html_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -49,17 +35,33 @@ def send_email_alert_sync(to_email: str, subject: str, message: str):
         </body>
         </html>
         """
-        msg.attach(MIMEText(html_content, 'html'))
-
-        # Send the email
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=5)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        logger.info(f"Email successfully sent to {to_email}")
+        
+        payload = {
+            "to": to_email,
+            "subject": subject,
+            "message": html_content
+        }
+        
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            GOOGLE_SCRIPT_URL, 
+            data=data, 
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+                logger.info(f"Email sent request pushed to Google Apps Script for {to_email}. Status code: {response.getcode()}")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            logger.error(f"HTTPError {e.code}: {error_body}")
+            raise Exception(f"HTTP Error {e.code}: Forbidden. Make sure Google Apps Script 'Who has access' is set to 'Anyone' (not 'Anyone with Google Account').")
+            
     except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {e}")
+        logger.error(f"Failed to send email to {to_email} via Google Apps Script: {e}")
         raise e
 
 async def send_email_alert(to_email: str, subject: str, message: str):

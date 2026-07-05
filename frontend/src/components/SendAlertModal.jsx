@@ -24,6 +24,37 @@ export default function SendAlertModal({ isOpen, onClose }) {
         recipient,
         recipient_type: recipientType
       });
+      
+      const targetEmails = res.data.emails_to_send || [];
+      if (targetEmails.length > 0) {
+        setStatus({ type: 'success', text: `Sending to ${targetEmails.length} recipients...` });
+        
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
+        
+        for (const email of targetEmails) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                to: email,
+                subject: title,
+                message: `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                    <h2 style="color: #0f172a; border-bottom: 2px solid #06b6d4; padding-bottom: 10px;">FRAS Notification System</h2>
+                    <p style="font-size: 16px;">${message.replace(/\\n/g, '<br>')}</p>
+                    <br>
+                    <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        This is an automated message from the Face Recognition Attendance System. Please do not reply directly to this email.
+                    </p>
+                </div>`
+              })
+            });
+          } catch(e) {
+            console.error("Failed to send email to", email, e);
+          }
+        }
+      }
+
       setStatus({ type: 'success', text: res.data.message });
       setTimeout(() => {
         onClose();
