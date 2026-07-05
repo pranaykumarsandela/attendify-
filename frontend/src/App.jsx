@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Fingerprint, LogOut, UserPlus } from 'lucide-react';
+import { Fingerprint, LogOut, UserPlus, KeyRound } from 'lucide-react';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import ParentDashboard from './pages/ParentDashboard';
@@ -8,10 +9,12 @@ import HODDashboard from './pages/HODDashboard';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import ChangePasswordModal from './components/ChangePasswordModal';
 
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const role = localStorage.getItem('role');
 
   const handleLogout = () => {
@@ -49,10 +52,19 @@ function App() {
                 </div>
                 <div className="flex items-center gap-5">
                   {role === 'hod' && (
-                    <Link to="/register" className="text-xs font-bold text-white/50 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all flex items-center gap-2">
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Admin Portal
-                    </Link>
+                    <>
+                      <button 
+                        onClick={() => setPasswordModalOpen(true)}
+                        className="text-xs font-bold text-white/50 hover:text-indigo-400 border border-white/10 hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition-all flex items-center gap-2"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        Change Password
+                      </button>
+                      <Link to="/register" className="text-xs font-bold text-white/50 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all flex items-center gap-2">
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Admin Portal
+                      </Link>
+                    </>
                   )}
                   <button 
                     onClick={handleLogout}
@@ -80,6 +92,11 @@ function App() {
           </Routes>
         </main>
       </div>
+
+      <ChangePasswordModal 
+        isOpen={isPasswordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+      />
     </div>
   );
 }
