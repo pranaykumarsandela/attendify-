@@ -228,10 +228,17 @@ export default function TeacherDashboard() {
                               <div className="text-[10px] font-bold text-cyan-300/70 mt-0.5 uppercase tracking-wider">{rec.roll_no}</div>
                             </td>
                             <td className="px-5 py-3">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold shadow-sm">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Present
-                              </span>
+                              {rec.status === 'present' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold shadow-sm">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Present
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-[10px] font-bold shadow-sm">
+                                  <Clock className="w-3 h-3" />
+                                  Absent
+                                </span>
+                              )}
                             </td>
                             <td className="px-5 py-3 text-right">
                               <span className="inline-flex items-center gap-1.5 text-white/60 font-bold bg-black/30 px-2.5 py-1 rounded-lg border border-white/5 text-xs">
