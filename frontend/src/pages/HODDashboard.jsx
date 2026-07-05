@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Building2, AlertTriangle, Search, ChevronRight, Mail, UserX, BarChart3 } from 'lucide-react';
-import SendAlertModal from '../components/SendAlertModal';
+import { Building2, AlertTriangle, Search, ChevronRight, BarChart3 } from 'lucide-react';
 import client from '../api/client';
 
 export default function HODDashboard() {
   const [profile] = useState(JSON.parse(localStorage.getItem('profile') || '{}'));
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [overview, setOverview] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [prefillRecipient, setPrefillRecipient] = useState(null);
-  const [sendingBulk, setSendingBulk] = useState(false);
+  const [sendingWarning, setSendingWarning] = useState(false);
 
   useEffect(() => {
     client.get('/api/hod/department/overview').then(res => setOverview(res.data)).catch(console.error);
@@ -30,17 +27,12 @@ export default function HODDashboard() {
     setSelectedStudent(res.data);
   };
 
-  const handleNotifyParent = () => {
+  const handleNotifyParent = async () => {
     if (!selectedStudent) return;
-    setPrefillRecipient(selectedStudent.student.roll_no);
-    setIsAlertModalOpen(true);
-  };
-
-  const handleBulkSend = async () => {
-    if (!window.confirm("Are you sure you want to send emails to ALL students and parents with <75% attendance?")) return;
-    setSendingBulk(true);
+    if (!window.confirm(`Are you sure you want to send a warning letter (<75%) to ${selectedStudent.student.name}'s parent?`)) return;
+    setSendingWarning(true);
     try {
-      const res = await client.post('/api/alerts/bulk-low-attendance');
+      const res = await client.post(`/api/alerts/notify-parent/${selectedStudent.student.roll_no}`);
       const targetEmails = res.data.emails_to_send || [];
       if (targetEmails.length > 0) {
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
@@ -67,12 +59,12 @@ export default function HODDashboard() {
           }
         }
       }
-      alert(res.data.message);
+      alert(`Warning letter successfully sent to ${selectedStudent.student.name}'s parent.`);
     } catch (err) {
       console.error(err);
-      alert("Failed to send bulk alerts.");
+      alert("Failed to send warning letter.");
     } finally {
-      setSendingBulk(false);
+      setSendingWarning(false);
     }
   };
 
@@ -97,13 +89,6 @@ export default function HODDashboard() {
             </p>
           </div>
         </div>
-        <button 
-          onClick={() => setIsAlertModalOpen(true)}
-          className="mt-4 md:mt-0 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-        >
-          <AlertTriangle className="w-4 h-4" />
-          Send Custom Alert
-        </button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Overview */}
@@ -132,16 +117,6 @@ export default function HODDashboard() {
                     </div>
                   </div>
                 </div>
-
-                {/* Bulk Send Button */}
-                <button 
-                  onClick={handleBulkSend}
-                  disabled={sendingBulk}
-                  className="w-full mt-4 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  {sendingBulk ? 'Sending Bulk Alerts...' : 'Bulk Send Low Attendance Alerts (< 75%)'}
-                </button>
                 
                 <div className="pt-2">
                   <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-3">Recently Added</h3>
@@ -264,16 +239,13 @@ export default function HODDashboard() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row gap-4 relative z-10">
-                  <button className="flex-1 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black text-sm py-2.5 rounded-xl hover:scale-[1.02] shadow-[0_0_15px_rgba(225,29,72,0.4)] transition-all flex items-center justify-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    Warning Letter
-                  </button>
                   <button 
                     onClick={handleNotifyParent}
-                    className="flex-1 bg-white/5 border-2 border-white/10 text-white/90 font-black text-sm py-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 shadow-inner disabled:opacity-50"
+                    disabled={sendingWarning}
+                    className="flex-1 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black text-sm py-2.5 rounded-xl hover:scale-[1.02] shadow-[0_0_15px_rgba(225,29,72,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
                   >
-                    <Mail className="w-4 h-4" />
-                    Custom Alert
+                    <AlertTriangle className="w-4 h-4" />
+                    {sendingWarning ? 'Sending Letter...' : 'Warning Letter'}
                   </button>
                 </div>
               </div>
@@ -281,7 +253,6 @@ export default function HODDashboard() {
           </div>
         </div>
       </div>
-      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} prefillRecipient={prefillRecipient} />
     </div>
   );
 }
