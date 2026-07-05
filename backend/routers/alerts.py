@@ -5,6 +5,7 @@ from sqlalchemy import func
 from datetime import date
 from database import get_db
 import schemas
+import models
 import logging
 from services.email_sender import send_email_alert
 
