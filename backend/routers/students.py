@@ -39,8 +39,20 @@ async def get_student_attendance(roll_no: str, db: AsyncSession = Depends(get_db
     att_result = await db.execute(select(Attendance).where(Attendance.roll_no == roll_no))
     attendances = att_result.scalars().all()
     
+    # Include subjects that the student attended but are not in their default semester
+    attended_subject_ids = {a.subject_id for a in attendances}
+    base_subject_ids = {s.id for s in subjects}
+    missing_subject_ids = attended_subject_ids - base_subject_ids
+    
+    extra_subjects = []
+    if missing_subject_ids:
+        extra_res = await db.execute(select(Subject).where(Subject.id.in_(missing_subject_ids)))
+        extra_subjects = extra_res.scalars().all()
+        
+    all_subjects = list(subjects) + extra_subjects
+    
     summary = []
-    for sub in subjects:
+    for sub in all_subjects:
         sub_atts = [a for a in attendances if a.subject_id == sub.id]
         present = len([a for a in sub_atts if a.status == 'present'])
         total = sub.total_classes
