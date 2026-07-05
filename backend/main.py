@@ -168,14 +168,17 @@ async def camera_stream(websocket: WebSocket):
                                 try:
                                     async with AsyncSessionLocal() as db_session:
                                         # Check if already marked today for this period (default period 1)
-                                        query = select(Attendance).where(
+                                        subject_res = await db_session.execute(select(Subject).where(Subject.id == subject_id))
+                                        subject_obj = subject_res.scalars().first()
+                                        current_period = (subject_obj.total_classes + 1) if subject_obj else 1
+
+                                        res_att = await db_session.execute(select(Attendance).where(
                                             Attendance.roll_no == f['roll_no'],
                                             Attendance.subject_id == subject_id,
                                             Attendance.date == date.today(),
-                                            Attendance.period == 1
-                                        )
-                                        db_res = await db_session.execute(query)
-                                        existing = db_res.scalars().first()
+                                            Attendance.period == current_period
+                                        ))
+                                        existing = res_att.scalars().first()
                                         
                                         if existing:
                                             # Rate limit Neon DB updates to avoid transactional locks (only update every 15s)
@@ -201,7 +204,7 @@ async def camera_stream(websocket: WebSocket):
                                                 roll_no=f['roll_no'],
                                                 subject_id=subject_id,
                                                 date=date.today(),
-                                                period=1,
+                                                period=current_period,
                                                 status='present',
                                                 confidence=f['confidence'],
                                                 marked_at=datetime.utcnow()

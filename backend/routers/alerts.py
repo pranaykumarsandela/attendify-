@@ -121,17 +121,21 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
+    subject.total_classes += 1
+
     today = date.today()
+    current_period = subject.total_classes
     
-    # Get all students
-    res_st = await db.execute(select(models.Student))
+    # Get all students for the subject's semester
+    res_st = await db.execute(select(models.Student).where(models.Student.semester == subject.semester))
     all_students = res_st.scalars().all()
     
-    # Get students marked present today for this subject
+    # Get students marked present today for this subject and period
     res_att = await db.execute(
         select(models.Attendance).where(
             models.Attendance.subject_id == subject_id,
             models.Attendance.date == today,
+            models.Attendance.period == current_period,
             models.Attendance.status == 'present'
         )
     )
@@ -150,6 +154,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                 select(models.Attendance).where(
                     models.Attendance.subject_id == subject_id,
                     models.Attendance.date == today,
+                    models.Attendance.period == current_period,
                     models.Attendance.roll_no == st.roll_no
                 )
             )
@@ -160,7 +165,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                     roll_no=st.roll_no,
                     subject_id=subject_id,
                     date=today,
-                    period=1,
+                    period=current_period,
                     status='absent',
                     confidence=0.0,
                     camera_source='system_batch'
@@ -186,6 +191,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                     })
                 
                 if st.student_email:
+                    student_message = f"dear student your attendance for the {subject.name} is marked as absent"
                     target_emails.append({
                         "to": st.student_email,
                         "subject": "Absence Notice",
