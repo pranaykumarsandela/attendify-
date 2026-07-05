@@ -12,14 +12,46 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 async def reset_data(db: AsyncSession = Depends(get_db)):
     from sqlalchemy import text
     try:
-        await db.execute(text("DELETE FROM attendance"))
+        await db.execute(text("DELETE FROM face_embeddings"))
         await db.execute(text("DELETE FROM alerts"))
+        await db.execute(text("DELETE FROM attendance"))
+        await db.execute(text("DELETE FROM students"))
+        await db.execute(text("DELETE FROM faculty"))
+        await db.execute(text("DELETE FROM hod WHERE email != 'shyamala@gmail.com'"))
         await db.execute(text("UPDATE subjects SET total_classes = 0, faculty_name = NULL"))
+        
+        # Add new HOD or update existing
+        from models import HOD
+        result = await db.execute(select(HOD).where(HOD.email == 'shyamala@gmail.com'))
+        hod = result.scalars().first()
+        if not hod:
+            hod = HOD(name="Shyamala", email="shyamala@gmail.com", password_hash=get_password_hash("1"), department="CSE")
+            db.add(hod)
+        else:
+            hod.password_hash = get_password_hash("1")
+            
         await db.commit()
-        return {"message": "Successfully cleared attendance, alerts, and reset subjects."}
+        return {"message": "Successfully cleared attendance, alerts, reset subjects, and updated HOD shyamala@gmail.com"}
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reset-attendance")
+async def reset_attendance(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import text
+    try:
+        # Delete only attendance and alerts (which depend on attendance/absences)
+        await db.execute(text("DELETE FROM alerts"))
+        await db.execute(text("DELETE FROM attendance"))
+        # Reset classes taken for all subjects, but keep the assigned faculty
+        await db.execute(text("UPDATE subjects SET total_classes = 0"))
+        
+        await db.commit()
+        return {"message": "Successfully cleared all attendance records and reset classes taken to 0."}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 class StudentCreate(BaseModel):
     roll_no: str

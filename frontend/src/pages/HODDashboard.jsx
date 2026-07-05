@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, AlertTriangle, Search, ChevronRight, BarChart3 } from 'lucide-react';
+import { Building2, AlertTriangle, Search, ChevronRight, BarChart3, RefreshCw } from 'lucide-react';
 import client from '../api/client';
 
 export default function HODDashboard() {
@@ -11,8 +11,12 @@ export default function HODDashboard() {
   const [sendingWarning, setSendingWarning] = useState(false);
   const [sendingBulk, setSendingBulk] = useState(false);
 
-  useEffect(() => {
+  const fetchOverview = () => {
     client.get('/api/hod/department/overview').then(res => setOverview(res.data)).catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchOverview();
   }, []);
 
   const handleSearch = async (e) => {
@@ -109,6 +113,18 @@ export default function HODDashboard() {
     }
   };
 
+  const handleResetAttendance = async () => {
+    if (!window.confirm("Are you sure you want to reset all attendance records and classes taken? This will NOT delete students or faculty.")) return;
+    try {
+      await client.post('/api/admin/reset-attendance');
+      alert("Successfully reset all attendance records and classes taken.");
+      fetchOverview(); // Refresh the dashboard data
+    } catch (err) {
+      console.error(err);
+      alert("Failed to reset attendance.");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header Profile Card */}
@@ -130,14 +146,23 @@ export default function HODDashboard() {
             </p>
           </div>
         </div>
-        <button 
-          onClick={handleBulkSend}
-          disabled={sendingBulk}
-          className="mt-4 md:mt-0 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.2)] border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <AlertTriangle className="w-4 h-4" />
-          {sendingBulk ? 'Sending...' : 'Bulk Send Alerts (< 75%)'}
-        </button>
+        <div className="flex flex-col md:flex-row gap-3 mt-4 md:mt-0">
+          <button 
+            onClick={handleResetAttendance}
+            className="bg-gradient-to-r from-orange-600/80 to-amber-600/80 hover:from-orange-500 hover:to-amber-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] border border-orange-500/30 transition-all flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reset Semester
+          </button>
+          <button 
+            onClick={handleBulkSend}
+            disabled={sendingBulk}
+            className="bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.2)] border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            {sendingBulk ? 'Sending...' : 'Bulk Send Alerts (< 75%)'}
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Overview */}
