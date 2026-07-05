@@ -10,7 +10,8 @@ export default function HODDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [notifying, setNotifying] = useState(false);
+  const [prefillRecipient, setPrefillRecipient] = useState(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
 
   useEffect(() => {
     client.get('/api/hod/department/overview').then(res => setOverview(res.data)).catch(console.error);
@@ -29,17 +30,49 @@ export default function HODDashboard() {
     setSelectedStudent(res.data);
   };
 
-  const handleNotifyParent = async () => {
+  const handleNotifyParent = () => {
     if (!selectedStudent) return;
-    setNotifying(true);
+    setPrefillRecipient(selectedStudent.student.roll_no);
+    setIsAlertModalOpen(true);
+  };
+
+  const handleBulkSend = async () => {
+    if (!window.confirm("Are you sure you want to send emails to ALL students and parents with <75% attendance?")) return;
+    setSendingBulk(true);
     try {
-      await client.post(`/api/alerts/notify-parent/${selectedStudent.student.roll_no}`);
-      alert(`Notification successfully sent to ${selectedStudent.student.name}'s parent.`);
+      const res = await client.post('/api/alerts/bulk-low-attendance');
+      const targetEmails = res.data.emails_to_send || [];
+      if (targetEmails.length > 0) {
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
+        for (const payload of targetEmails) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                to: payload.to,
+                subject: payload.subject,
+                message: `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                    <h2 style="color: #0f172a; border-bottom: 2px solid #06b6d4; padding-bottom: 10px;">FRAS Notification System</h2>
+                    <p style="font-size: 16px;">${payload.message.replace(/\\n/g, '<br>')}</p>
+                    <br>
+                    <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        This is an automated message from the Face Recognition Attendance System. Please do not reply directly to this email.
+                    </p>
+                </div>`
+              })
+            });
+          } catch(e) {
+            console.error("Failed to send email to", payload.to, e);
+          }
+        }
+      }
+      alert(res.data.message);
     } catch (err) {
       console.error(err);
-      alert("Failed to send notification.");
+      alert("Failed to send bulk alerts.");
     } finally {
-      setNotifying(false);
+      setSendingBulk(false);
     }
   };
 
@@ -99,6 +132,16 @@ export default function HODDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Bulk Send Button */}
+                <button 
+                  onClick={handleBulkSend}
+                  disabled={sendingBulk}
+                  className="w-full mt-4 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  {sendingBulk ? 'Sending Bulk Alerts...' : 'Bulk Send Low Attendance Alerts (< 75%)'}
+                </button>
                 
                 <div className="pt-2">
                   <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-3">Recently Added</h3>
@@ -227,11 +270,10 @@ export default function HODDashboard() {
                   </button>
                   <button 
                     onClick={handleNotifyParent}
-                    disabled={notifying}
                     className="flex-1 bg-white/5 border-2 border-white/10 text-white/90 font-black text-sm py-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 shadow-inner disabled:opacity-50"
                   >
                     <Mail className="w-4 h-4" />
-                    {notifying ? 'Sending...' : 'Notify Parent'}
+                    Custom Alert
                   </button>
                 </div>
               </div>
@@ -239,7 +281,7 @@ export default function HODDashboard() {
           </div>
         </div>
       </div>
-      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
+      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} prefillRecipient={prefillRecipient} />
     </div>
   );
 }

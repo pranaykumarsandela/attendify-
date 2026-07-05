@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import client from '../api/client';
 
-export default function SendAlertModal({ isOpen, onClose }) {
+export default function SendAlertModal({ isOpen, onClose, prefillRecipient = null }) {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [recipient, setRecipient] = useState('all'); // 'all' or roll_no
+  const [recipient, setRecipient] = useState('all'); // 'all', 'specify', or roll_no
   const [recipientType, setRecipientType] = useState('both'); // 'student', 'parent', 'both'
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success'|'error', text: '' }
+
+  useEffect(() => {
+    if (isOpen) {
+      if (prefillRecipient) {
+        setRecipient(prefillRecipient);
+      } else {
+        setRecipient('all');
+      }
+      setTitle('');
+      setMessage('');
+      setRecipientType('both');
+      setStatus(null);
+    }
+  }, [isOpen, prefillRecipient]);
 
   if (!isOpen) return null;
 
@@ -96,12 +110,15 @@ export default function SendAlertModal({ isOpen, onClose }) {
             <div>
               <label className="block text-xs font-bold text-white/70 mb-1">Target Audience</label>
               <select 
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
+                value={recipient === 'all' ? 'all' : 'specify'}
+                onChange={(e) => {
+                  if (e.target.value === 'all') setRecipient('all');
+                  else setRecipient('');
+                }}
                 className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-amber-500 focus:outline-none"
               >
                 <option value="all">Entire College/Class</option>
-                {/* Normally we'd fetch a list of students here. For now, they can type it in or use 'all' */}
+                <option value="specify">Specific Student</option>
               </select>
             </div>
             
@@ -117,14 +134,7 @@ export default function SendAlertModal({ isOpen, onClose }) {
                 />
               </div>
             )}
-            {recipient === 'all' && (
-              <div>
-                <label className="block text-xs font-bold text-white/70 mb-1">Specific Roll No</label>
-                <button type="button" onClick={() => setRecipient('')} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-2.5 text-sm text-white/70 transition-colors">
-                  Specify Student
-                </button>
-              </div>
-            )}
+
           </div>
 
           <div>

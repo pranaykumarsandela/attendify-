@@ -19,6 +19,66 @@ async def get_alerts(roll_no: str, db: AsyncSession = Depends(get_db)):
     alerts = res.scalars().all()
     return alerts
 
+@router.post("/bulk-low-attendance")
+async def bulk_low_attendance_alert(db: AsyncSession = Depends(get_db)):
+    # Fetch all students
+    res = await db.execute(select(models.Student))
+    students = res.scalars().all()
+    
+    # Fetch all subjects to calculate total classes per semester
+    sub_res = await db.execute(select(models.Subject))
+    subjects = sub_res.scalars().all()
+    
+    # Fetch all attendances
+    att_res = await db.execute(select(models.Attendance))
+    all_attendances = att_res.scalars().all()
+    
+    target_emails = []
+    emails_sent = 0
+    
+    for student in students:
+        # Calculate overall attendance
+        student_subjects = [s for s in subjects if s.semester == student.semester]
+        total_possible = sum([s.total_classes for s in student_subjects])
+        if total_possible == 0:
+            continue
+            
+        student_atts = [a for a in all_attendances if a.roll_no == student.roll_no and a.status == 'present']
+        present_count = len(student_atts)
+        
+        overall_percent = (present_count / total_possible) * 100
+        
+        if overall_percent < 75.0:
+            message = f"Your child {student.name} ({student.roll_no}) has an overall attendance of {overall_percent:.1f}%, which is below the required 75%. Please ensure regular attendance."
+            student_msg = f"Dear {student.name}, your overall attendance is {overall_percent:.1f}%, which is below the required 75%. Please ensure regular attendance."
+            
+            # Save alert
+            alert = models.Alert(
+                roll_no=student.roll_no,
+                type="low_attendance",
+                title="Low Attendance Warning (<75%)",
+                message=message
+            )
+            db.add(alert)
+            
+            if student.parent_email:
+                target_emails.append({
+                    "to": student.parent_email,
+                    "subject": "Low Attendance Warning",
+                    "message": message
+                })
+                emails_sent += 1
+            if student.student_email:
+                target_emails.append({
+                    "to": student.student_email,
+                    "subject": "Low Attendance Warning",
+                    "message": student_msg
+                })
+                emails_sent += 1
+                
+    await db.commit()
+    return {"status": "success", "message": f"Generated {emails_sent} alerts for students with <75% attendance.", "emails_to_send": target_emails}
+
 @router.post("/notify-parent/{roll_no}")
 async def notify_parent_low_attendance(roll_no: str, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(models.Student).where(models.Student.roll_no == roll_no))
@@ -26,8 +86,8 @@ async def notify_parent_low_attendance(roll_no: str, db: AsyncSession = Depends(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    # Realistically, this would check logic. But for demo, we trigger directly.
-    message = f"Your student {student.name} with roll no {roll_no} have attendance less than 75."
+    message = f"Your student {student.name} with roll no {roll_no} has attendance less than 75%."
+    student_message = f"Dear student {student.name}, your attendance with roll no {roll_no} is less than 75%."
     
     alert = models.Alert(
         roll_no=roll_no,
@@ -37,22 +97,22 @@ async def notify_parent_low_attendance(roll_no: str, db: AsyncSession = Depends(
     )
     db.add(alert)
     await db.commit()
-    # Send actual email to parent
-    await send_email_alert(
-        to_email=student.parent_email,
-        subject="Low Attendance Warning",
-        message=message
-    )
     
-    # Send email to student
-    student_message = f"Dear student {student.name}, your attendance with roll no {roll_no} have attendance less than 75."
-    await send_email_alert(
-        to_email=student.student_email,
-        subject="Low Attendance Warning",
-        message=student_message
-    )
+    target_emails = []
+    if student.parent_email:
+        target_emails.append({
+            "to": student.parent_email,
+            "subject": "Low Attendance Warning",
+            "message": message
+        })
+    if student.student_email:
+        target_emails.append({
+            "to": student.student_email,
+            "subject": "Low Attendance Warning",
+            "message": student_message
+        })
     
-    return {"status": "success", "message": "Notification sent to parent and student."}
+    return {"status": "success", "message": "Notification payload generated.", "emails_to_send": target_emails}
 
 @router.post("/finalize-daily-attendance/{subject_id}")
 async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(get_db)):
@@ -80,6 +140,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
     present_roll_nos = {r.roll_no for r in present_records}
     
     absent_students = []
+    target_emails = []
     
     for st in all_students:
         if st.roll_no not in present_roll_nos:
@@ -116,24 +177,24 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                 )
                 db.add(alert)
                 absent_students.append(st)
-                # Send actual email to parent
-                await send_email_alert(
-                    to_email=st.parent_email,
-                    subject="Absence Notice",
-                    message=message
-                )
                 
-                # Send email to student
-                student_message = f"dear student your attendance for the {subject.name} is marked as absent"
-                await send_email_alert(
-                    to_email=st.student_email,
-                    subject="Absence Notice",
-                    message=student_message
-                )
+                if st.parent_email:
+                    target_emails.append({
+                        "to": st.parent_email,
+                        "subject": "Absence Notice",
+                        "message": message
+                    })
+                
+                if st.student_email:
+                    target_emails.append({
+                        "to": st.student_email,
+                        "subject": "Absence Notice",
+                        "message": student_message
+                    })
 
     await db.commit()
     
-    return {"status": "success", "absent_count": len(absent_students), "message": f"Finalized attendance. Sent {len(absent_students)} absence alerts to parents."}
+    return {"status": "success", "absent_count": len(absent_students), "message": f"Finalized attendance. Processing {len(target_emails)} alerts.", "emails_to_send": target_emails}
 
 from pydantic import BaseModel
 

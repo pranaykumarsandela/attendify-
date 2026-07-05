@@ -16,6 +16,8 @@ export default function TeacherDashboard() {
   const [todaysRoll, setTodaysRoll] = useState([]);
   const [atRisk, setAtRisk] = useState([]);
   const [finalizing, setFinalizing] = useState(false);
+  const [prefillRecipient, setPrefillRecipient] = useState(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
   const { subscribe } = useWebSocket(`${wsUrl}/api/camera/stream`);
 
@@ -62,7 +64,35 @@ export default function TeacherDashboard() {
     setFinalizing(true);
     try {
       const res = await client.post(`/api/alerts/finalize-daily-attendance/${subjectId}`);
-      alert(`Session ended. ${res.data.absent_count} absence alerts sent to parents.`);
+      
+      const targetEmails = res.data.emails_to_send || [];
+      if (targetEmails.length > 0) {
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
+        for (const payload of targetEmails) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                to: payload.to,
+                subject: payload.subject,
+                message: `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                    <h2 style="color: #0f172a; border-bottom: 2px solid #06b6d4; padding-bottom: 10px;">FRAS Notification System</h2>
+                    <p style="font-size: 16px;">${payload.message.replace(/\\n/g, '<br>')}</p>
+                    <br>
+                    <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        This is an automated message from the Face Recognition Attendance System. Please do not reply directly to this email.
+                    </p>
+                </div>`
+              })
+            });
+          } catch(e) {
+            console.error("Failed to send email to", payload.to, e);
+          }
+        }
+      }
+      
+      alert(res.data.message);
       setTodaysRoll([]); // Clear the live log on session close
       // Refresh at risk stats
       if (activeTab === 'at-risk') {
@@ -74,6 +104,46 @@ export default function TeacherDashboard() {
       alert("Failed to finalize attendance.");
     } finally {
       setFinalizing(false);
+    }
+  };
+
+  const handleBulkSend = async () => {
+    if (!window.confirm("Are you sure you want to send emails to ALL students and parents with <75% attendance?")) return;
+    setSendingBulk(true);
+    try {
+      const res = await client.post('/api/alerts/bulk-low-attendance');
+      const targetEmails = res.data.emails_to_send || [];
+      if (targetEmails.length > 0) {
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
+        for (const payload of targetEmails) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                to: payload.to,
+                subject: payload.subject,
+                message: `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                    <h2 style="color: #0f172a; border-bottom: 2px solid #06b6d4; padding-bottom: 10px;">FRAS Notification System</h2>
+                    <p style="font-size: 16px;">${payload.message.replace(/\\n/g, '<br>')}</p>
+                    <br>
+                    <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        This is an automated message from the Face Recognition Attendance System. Please do not reply directly to this email.
+                    </p>
+                </div>`
+              })
+            });
+          } catch(e) {
+            console.error("Failed to send email to", payload.to, e);
+          }
+        }
+      }
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send bulk alerts.");
+    } finally {
+      setSendingBulk(false);
     }
   };
 
@@ -109,13 +179,23 @@ export default function TeacherDashboard() {
               <option value="" disabled className="bg-slate-900">No Subjects Assigned</option>
             )}
           </select>
-          <button 
-            onClick={() => setIsAlertModalOpen(true)}
-            className="w-full md:w-auto bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] mt-3 md:mt-0"
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Send Custom Alert
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 mt-3 md:mt-0">
+            <button 
+              onClick={() => { setPrefillRecipient(null); setIsAlertModalOpen(true); }}
+              className="w-full sm:w-auto bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Custom Alert
+            </button>
+            <button 
+              onClick={handleBulkSend}
+              disabled={sendingBulk}
+              className="w-full sm:w-auto bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] disabled:opacity-50"
+            >
+              <Users className="w-4 h-4" />
+              {sendingBulk ? 'Sending...' : 'Bulk Alert (<75%)'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -244,6 +324,7 @@ export default function TeacherDashboard() {
                     <th className="px-6 py-4 font-bold text-white/50 text-[10px] uppercase tracking-[0.2em]">Student</th>
                     <th className="px-6 py-4 font-bold text-white/50 text-[10px] uppercase tracking-[0.2em]">Current</th>
                     <th className="px-6 py-4 font-bold text-white/50 text-[10px] uppercase tracking-[0.2em]">Action Required</th>
+                    <th className="px-6 py-4 font-bold text-white/50 text-[10px] uppercase tracking-[0.2em]">Notify</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -266,11 +347,20 @@ export default function TeacherDashboard() {
                           Needs {s.classes_needed} consecutive classes
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => { setPrefillRecipient(s.roll_no); setIsAlertModalOpen(true); }}
+                          className="bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                          Custom Alert
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {atRisk.length === 0 && (
                     <tr>
-                      <td colSpan="3" className="text-center py-16">
+                      <td colSpan="4" className="text-center py-16">
                          <div className="flex flex-col items-center justify-center text-white/30">
                             <CheckCircle2 className="w-12 h-12 mb-3 text-emerald-400/50 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
                             <p className="font-heading text-lg font-black text-white/80">All Good!</p>
@@ -286,7 +376,7 @@ export default function TeacherDashboard() {
         )}
       </div>
       
-      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
+      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} prefillRecipient={prefillRecipient} />
     </div>
   );
 }

@@ -49,12 +49,9 @@ function App() {
                 </div>
                 <div className="flex items-center gap-5">
                   {role === 'hod' && (
-                    <Link 
-                      to="/register" 
-                      className="flex items-center gap-1.5 text-xs font-bold text-white/70 hover:text-white bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      Register Face
+                    <Link to="/register" className="text-xs font-bold text-white/50 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all flex items-center gap-2">
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Admin Portal
                     </Link>
                   )}
                   <button 
