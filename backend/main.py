@@ -11,7 +11,7 @@ from services.notifier import manager
 from seed import seed_db
 import logging
 from sqlalchemy.future import select
-from models import Attendance, Student
+from models import Attendance, Student, Subject
 from datetime import date, datetime, timezone
 
 logging.basicConfig(level=logging.INFO)
