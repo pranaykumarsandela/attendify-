@@ -102,7 +102,69 @@ async def forgot_password(req: ForgotPasswordReq, db: AsyncSession = Depends(get
         # Prevent email enumeration by returning success anyway
         return {"message": "If an account with that email exists, a password reset link has been sent."}
         
-    # Mock sending reset email
-    print(f"MOCK EMAIL: Sent password reset link to {req.email} for role {req.role}")
+    # Generate a JWT for password reset (valid for 15 minutes)
+    reset_token_expires = timedelta(minutes=15)
+    reset_token = create_access_token(
+        data={"sub": req.email, "role": req.role, "type": "reset"}, expires_delta=reset_token_expires
+    )
     
+    # Send email with reset link
+    from services.email_sender import send_email_alert
+    import os
+    frontend_url = os.getenv("FRONTEND_URL", "https://attendify-rosy-ten.vercel.app")
+    reset_link = f"{frontend_url}/reset-password?token={reset_token}&role={req.role}"
+    
+    email_body = f"Hello,\n\nYou requested to reset your password. Click the link below to reset it (valid for 15 minutes):\n{reset_link}\n\nIf you did not request this, please ignore this email."
+    
+    try:
+        await send_email_alert(req.email, "Password Reset Request", email_body)
+    except Exception as e:
+        print(f"Error sending reset email: {e}")
+        
     return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+class ResetPasswordReq(BaseModel):
+    token: str
+    role: str
+    new_password: str
+
+@router.post("/reset-password")
+async def reset_password(req: ResetPasswordReq, db: AsyncSession = Depends(get_db)):
+    from jose import JWTError, jwt
+    from routers.auth import SECRET_KEY, ALGORITHM, get_password_hash
+    try:
+        payload = jwt.decode(req.token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        role: str = payload.get("role")
+        token_type: str = payload.get("type")
+        
+        if email is None or role != req.role or token_type != "reset":
+            raise HTTPException(status_code=400, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+        
+    # Update password in DB
+    hashed_password = get_password_hash(req.new_password)
+    user = None
+    if role == 'student':
+        res = await db.execute(select(Student).where(Student.student_email == email))
+        user = res.scalars().first()
+        if user: user.password_hash = hashed_password
+    elif role == 'parent':
+        res = await db.execute(select(Student).where(Student.parent_email == email))
+        user = res.scalars().first()
+        if user: user.parent_password_hash = hashed_password
+    elif role == 'teacher':
+        res = await db.execute(select(Faculty).where(Faculty.email == email))
+        user = res.scalars().first()
+        if user: user.password_hash = hashed_password
+    elif role == 'hod':
+        res = await db.execute(select(HOD).where(HOD.email == email))
+        user = res.scalars().first()
+        if user: user.password_hash = hashed_password
+        
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await db.commit()
+    return {"message": "Password reset successfully."}

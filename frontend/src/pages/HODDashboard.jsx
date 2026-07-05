@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Building2, AlertTriangle, Search, ChevronRight, Mail, UserX, BarChart3 } from 'lucide-react';
+import SendAlertModal from '../components/SendAlertModal';
 import client from '../api/client';
 
 export default function HODDashboard() {
   const [profile] = useState(JSON.parse(localStorage.getItem('profile') || '{}'));
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [overview, setOverview] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -62,8 +64,14 @@ export default function HODDashboard() {
             </p>
           </div>
         </div>
+        <button 
+          onClick={() => setIsAlertModalOpen(true)}
+          className="mt-4 md:mt-0 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+        >
+          <AlertTriangle className="w-4 h-4" />
+          Send Custom Alert
+        </button>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Overview */}
         <div className="lg:col-span-1 space-y-6">
@@ -231,6 +239,7 @@ export default function HODDashboard() {
           </div>
         </div>
       </div>
+      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
     </div>
   );
 }

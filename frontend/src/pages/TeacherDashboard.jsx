@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Video, Clock, CheckCircle2 } from 'lucide-react';
 import CameraFeed from '../components/CameraFeed';
+import SendAlertModal from '../components/SendAlertModal';
 import client from '../api/client';
 import useWebSocket from '../hooks/useWebSocket';
 
 export default function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState('roll');
   const [profile] = useState(JSON.parse(localStorage.getItem('profile') || '{}'));
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [subjectId, setSubjectId] = useState(() => {
     if (Array.isArray(profile.subjects) && profile.subjects.length > 0) return profile.subjects[0].id;
     return null;
@@ -107,6 +109,13 @@ export default function TeacherDashboard() {
               <option value="" disabled className="bg-slate-900">No Subjects Assigned</option>
             )}
           </select>
+          <button 
+            onClick={() => setIsAlertModalOpen(true)}
+            className="w-full md:w-auto bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] mt-3 md:mt-0"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Send Custom Alert
+          </button>
         </div>
       </div>
 
@@ -276,6 +285,8 @@ export default function TeacherDashboard() {
           </div>
         )}
       </div>
+      
+      <SendAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
     </div>
   );
 }

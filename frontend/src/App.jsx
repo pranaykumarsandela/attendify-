@@ -6,6 +6,8 @@ import ParentDashboard from './pages/ParentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import HODDashboard from './pages/HODDashboard';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ function App() {
     navigate('/');
   };
 
-  const isLogin = location.pathname === '/';
+  const isAuthPage = ['/', '/forgot-password', '/reset-password'].includes(location.pathname);
 
   return (
     <div className={`min-h-screen relative overflow-hidden bg-slate-950`}>
@@ -31,7 +33,7 @@ function App() {
       </div>
 
       <div className="relative z-10">
-        {!isLogin && (
+        {!isAuthPage && (
           <nav className="bg-slate-900/40 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-16">
@@ -49,13 +51,12 @@ function App() {
                   {role === 'hod' && (
                     <Link 
                       to="/register" 
-                      className="flex items-center gap-2 text-xs font-bold text-fuchsia-300 hover:text-fuchsia-200 transition-colors bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/20 hover:border-fuchsia-500/40 px-4 py-2 rounded-lg shadow-[0_0_15px_rgba(217,70,239,0.15)]"
+                      className="flex items-center gap-1.5 text-xs font-bold text-white/70 hover:text-white bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Admin Portal
+                      <UserPlus className="w-4 h-4" />
+                      Register Face
                     </Link>
                   )}
-                  <div className="h-5 w-px bg-white/10"></div>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center gap-1.5 text-xs font-bold text-rose-300 hover:text-rose-200 px-3 py-2 rounded-lg hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition-all duration-300 group"
@@ -69,9 +70,11 @@ function App() {
           </nav>
         )}
 
-        <main className={isLogin ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in zoom-in-95 duration-500'}>
+        <main className={isAuthPage ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in zoom-in-95 duration-500'}>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/student" element={<StudentDashboard />} />
             <Route path="/parent" element={<ParentDashboard />} />
             <Route path="/teacher" element={<TeacherDashboard />} />

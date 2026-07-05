@@ -158,17 +158,26 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-sm py-3 px-4 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 mt-6"
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-sm py-3 px-4 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 mt-6"
               >
-                {loading ? 'Authenticating...' : 'Sign In'}
+                {loading ? 'Authenticating...' : 'Secure Login'}
                 {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
               </button>
+            
+              <div className="mt-6 text-center">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/forgot-password')} 
+                  className="text-white/50 hover:text-cyan-400 text-xs font-bold transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </div>
             </form>
             
             </div>
           </div>
         </div>
       </div>
-    </div>
   );
 }

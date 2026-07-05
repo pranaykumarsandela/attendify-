@@ -8,6 +8,19 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
+@router.post("/reset-data")
+async def reset_data(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import text
+    try:
+        await db.execute(text("DELETE FROM attendance"))
+        await db.execute(text("DELETE FROM alerts"))
+        await db.execute(text("UPDATE subjects SET total_classes = 0, faculty_name = NULL"))
+        await db.commit()
+        return {"message": "Successfully cleared attendance, alerts, and reset subjects."}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 class StudentCreate(BaseModel):
     roll_no: str
     name: str

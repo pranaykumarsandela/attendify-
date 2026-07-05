@@ -27,7 +27,7 @@ async def notify_parent_low_attendance(roll_no: str, db: AsyncSession = Depends(
         raise HTTPException(status_code=404, detail="Student not found")
 
     # Realistically, this would check logic. But for demo, we trigger directly.
-    message = f"Dear Parent, your ward {student.name} ({roll_no}) is falling below the mandatory 75% attendance. Please ensure they attend classes regularly."
+    message = f"Your student {student.name} with roll no {roll_no} have attendance less than 75."
     
     alert = models.Alert(
         roll_no=roll_no,
@@ -45,7 +45,7 @@ async def notify_parent_low_attendance(roll_no: str, db: AsyncSession = Depends(
     )
     
     # Send email to student
-    student_message = f"Dear {student.name}, your attendance is falling below the mandatory 75% for {roll_no}. Please attend classes regularly to avoid penalties."
+    student_message = f"Dear student {student.name}, your attendance with roll no {roll_no} have attendance less than 75."
     await send_email_alert(
         to_email=student.student_email,
         subject="Low Attendance Warning",
@@ -107,7 +107,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                 db.add(absent_record)
                 
                 # Create Alert
-                message = f"Dear Parent, your ward {st.name} ({st.roll_no}) was marked ABSENT for {subject.name} on {today.strftime('%d %b %Y')}."
+                message = f"your student {st.name} bearing {st.roll_no} is absent for {subject.name}"
                 alert = models.Alert(
                     roll_no=st.roll_no,
                     type="absence",
@@ -124,7 +124,7 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                 )
                 
                 # Send email to student
-                student_message = f"Dear {st.name}, you have been marked ABSENT for {subject.name} on {today.strftime('%d %b %Y')}."
+                student_message = f"dear student your attendance for the {subject.name} is marked as absent"
                 await send_email_alert(
                     to_email=st.student_email,
                     subject="Absence Notice",
@@ -134,3 +134,46 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
     await db.commit()
     
     return {"status": "success", "absent_count": len(absent_students), "message": f"Finalized attendance. Sent {len(absent_students)} absence alerts to parents."}
+
+from pydantic import BaseModel
+
+class CustomAlertReq(BaseModel):
+    title: str
+    message: str
+    recipient: str # 'all', or specific 'roll_no'
+    recipient_type: str # 'student', 'parent', 'both'
+
+@router.post("/custom")
+async def send_custom_alert(req: CustomAlertReq, db: AsyncSession = Depends(get_db)):
+    if req.recipient == 'all':
+        res_st = await db.execute(select(models.Student))
+        targets = res_st.scalars().all()
+    else:
+        res_st = await db.execute(select(models.Student).where(models.Student.roll_no == req.recipient))
+        student = res_st.scalars().first()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        targets = [student]
+
+    emails_sent = 0
+    for st in targets:
+        # Save alert in DB (always associated with student's roll_no)
+        alert = models.Alert(
+            roll_no=st.roll_no,
+            type="custom",
+            title=req.title,
+            message=req.message
+        )
+        db.add(alert)
+        
+        # Send Emails
+        if req.recipient_type in ['parent', 'both'] and st.parent_email:
+            await send_email_alert(st.parent_email, req.title, req.message)
+            emails_sent += 1
+            
+        if req.recipient_type in ['student', 'both'] and st.student_email:
+            await send_email_alert(st.student_email, req.title, req.message)
+            emails_sent += 1
+
+    await db.commit()
+    return {"status": "success", "message": f"Custom alert sent to {emails_sent} recipients."}
