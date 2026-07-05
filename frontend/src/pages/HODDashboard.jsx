@@ -130,6 +130,14 @@ export default function HODDashboard() {
             </p>
           </div>
         </div>
+        <button 
+          onClick={handleBulkSend}
+          disabled={sendingBulk}
+          className="mt-4 md:mt-0 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.2)] border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <AlertTriangle className="w-4 h-4" />
+          {sendingBulk ? 'Sending...' : 'Bulk Send Alerts (< 75%)'}
+        </button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Overview */}
@@ -158,15 +166,6 @@ export default function HODDashboard() {
                     </div>
                   </div>
                 </div>
-
-                <button 
-                  onClick={handleBulkSend}
-                  disabled={sendingBulk}
-                  className="w-full mt-4 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  {sendingBulk ? 'Sending Bulk Alerts...' : 'Bulk Send Low Attendance Alerts (< 75%)'}
-                </button>
                 
                 <div className="pt-2">
                   <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-3">Recently Added</h3>
