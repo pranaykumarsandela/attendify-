@@ -66,8 +66,15 @@ class StudentCreate(BaseModel):
 
 @router.post("/student")
 async def create_student(data: StudentCreate, db: AsyncSession = Depends(get_db)):
+    roll_no_upper = data.roll_no.upper()
+    
+    # Check for existing student
+    res = await db.execute(select(models.Student).where(models.Student.roll_no == roll_no_upper))
+    if res.scalars().first():
+        raise HTTPException(status_code=400, detail=f"Student with roll number {roll_no_upper} already exists.")
+        
     student = models.Student(
-        roll_no=data.roll_no.upper(),
+        roll_no=roll_no_upper,
         name=data.name,
         semester=data.semester,
         section=data.section.upper(),
@@ -168,6 +175,11 @@ class FacultyCreate(BaseModel):
 
 @router.post("/faculty")
 async def create_faculty(data: FacultyCreate, db: AsyncSession = Depends(get_db)):
+    # Check for existing faculty
+    res_fac = await db.execute(select(models.Faculty).where(models.Faculty.email == data.email))
+    if res_fac.scalars().first():
+        raise HTTPException(status_code=400, detail=f"Faculty with email {data.email} already exists.")
+
     sub_items = [s.strip() for s in data.subjects.split(",") if s.strip()]
     sub_ids = []
     
