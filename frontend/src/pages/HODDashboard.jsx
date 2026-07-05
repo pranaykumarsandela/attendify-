@@ -9,6 +9,7 @@ export default function HODDashboard() {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [sendingWarning, setSendingWarning] = useState(false);
+  const [sendingBulk, setSendingBulk] = useState(false);
 
   useEffect(() => {
     client.get('/api/hod/department/overview').then(res => setOverview(res.data)).catch(console.error);
@@ -25,6 +26,46 @@ export default function HODDashboard() {
   const viewStudent = async (roll_no) => {
     const res = await client.get(`/api/hod/student/${roll_no}/full-report`);
     setSelectedStudent(res.data);
+  };
+
+  const handleBulkSend = async () => {
+    if (!window.confirm("Are you sure you want to send emails to ALL students and parents with <75% attendance?")) return;
+    setSendingBulk(true);
+    try {
+      const res = await client.post('/api/alerts/bulk-low-attendance');
+      const targetEmails = res.data.emails_to_send || [];
+      if (targetEmails.length > 0) {
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx50Ah9t-LG_DR7eE_-JcjgYgqtRdwyXGAsqAcukZYV122W00DuotCCmvizeVb0Pxq_/exec";
+        for (const payload of targetEmails) {
+          try {
+            await fetch(SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                to: payload.to,
+                subject: payload.subject,
+                message: `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; background: #ffffff;">
+                    <h2 style="color: #0f172a; border-bottom: 2px solid #06b6d4; padding-bottom: 10px;">FRAS Notification System</h2>
+                    <p style="font-size: 16px;">${payload.message.replace(/\\n/g, '<br>')}</p>
+                    <br>
+                    <p style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        This is an automated message from the Face Recognition Attendance System. Please do not reply directly to this email.
+                    </p>
+                </div>`
+              })
+            });
+          } catch(e) {
+            console.error("Failed to send email to", payload.to, e);
+          }
+        }
+      }
+      alert(res.data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send bulk alerts.");
+    } finally {
+      setSendingBulk(false);
+    }
   };
 
   const handleNotifyParent = async () => {
@@ -117,6 +158,15 @@ export default function HODDashboard() {
                     </div>
                   </div>
                 </div>
+
+                <button 
+                  onClick={handleBulkSend}
+                  disabled={sendingBulk}
+                  className="w-full mt-4 bg-gradient-to-r from-red-600/80 to-rose-600/80 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  {sendingBulk ? 'Sending Bulk Alerts...' : 'Bulk Send Low Attendance Alerts (< 75%)'}
+                </button>
                 
                 <div className="pt-2">
                   <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-3">Recently Added</h3>
