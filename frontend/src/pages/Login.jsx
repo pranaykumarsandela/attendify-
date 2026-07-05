@@ -28,22 +28,6 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    if (!email) {
-      setError('Please enter your email address to reset your password.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await client.post('/api/auth/forgot-password', { email, role });
-      alert(res.data.message);
-    } catch (err) {
-      setError('Failed to send password reset link.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const roles = [
     { id: 'student', label: 'Student', icon: UserCircle },
@@ -138,7 +122,6 @@ export default function Login() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-white/70 uppercase tracking-wider">Password</label>
-                  <button type="button" onClick={handleForgotPassword} className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors">Forgot password?</button>
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">

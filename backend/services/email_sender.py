@@ -52,7 +52,7 @@ def send_email_alert_sync(to_email: str, subject: str, message: str):
         msg.attach(MIMEText(html_content, 'html'))
 
         # Send the email
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=5)
         server.starttls()
         server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.send_message(msg)
@@ -60,6 +60,7 @@ def send_email_alert_sync(to_email: str, subject: str, message: str):
         logger.info(f"Email successfully sent to {to_email}")
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
+        raise e
 
 async def send_email_alert(to_email: str, subject: str, message: str):
     """Asynchronous wrapper for sending emails."""

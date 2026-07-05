@@ -167,13 +167,16 @@ async def send_custom_alert(req: CustomAlertReq, db: AsyncSession = Depends(get_
         db.add(alert)
         
         # Send Emails
-        if req.recipient_type in ['parent', 'both'] and st.parent_email:
-            await send_email_alert(st.parent_email, req.title, req.message)
-            emails_sent += 1
-            
-        if req.recipient_type in ['student', 'both'] and st.student_email:
-            await send_email_alert(st.student_email, req.title, req.message)
-            emails_sent += 1
+        try:
+            if req.recipient_type in ['parent', 'both'] and st.parent_email:
+                await send_email_alert(st.parent_email, req.title, req.message)
+                emails_sent += 1
+                
+            if req.recipient_type in ['student', 'both'] and st.student_email:
+                await send_email_alert(st.student_email, req.title, req.message)
+                emails_sent += 1
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"SMTP Error: {str(e)}")
 
     await db.commit()
     return {"status": "success", "message": f"Custom alert sent to {emails_sent} recipients."}
