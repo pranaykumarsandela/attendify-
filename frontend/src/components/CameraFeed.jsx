@@ -107,13 +107,6 @@ export default function CameraFeed({ subjectId }) {
         }
         setIsStreaming(true);
         setStatusMessage("Live monitoring active");
-
-        // Notify backend to increment total classes taken for this subject
-        if (subjectId) {
-          client.post(`/api/subjects/${subjectId}/increment-classes`)
-            .then(res => console.log("Classes count incremented:", res.data.total_classes))
-            .catch(err => console.error("Failed to increment classes count:", err));
-        }
       } catch (err) {
         console.error("Failed to access webcam:", err);
         setStatusMessage("❌ Failed to access webcam");
