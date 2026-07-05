@@ -80,3 +80,15 @@ async def get_at_risk_students(subject_id: int, db: AsyncSession = Depends(get_d
                 })
                 
     return at_risk
+
+@router.post("/api/subjects/{subject_id}/increment-classes")
+async def increment_classes(subject_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalars().first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    
+    subject.total_classes += 1
+    await db.commit()
+    return {"message": "Success", "total_classes": subject.total_classes}
+

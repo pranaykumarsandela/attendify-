@@ -146,7 +146,7 @@ async def create_faculty(data: FacultyCreate, db: AsyncSession = Depends(get_db)
                 name=s_name,
                 code=s_name[:3].upper() + str(sem) + "01", # auto-gen code
                 semester=sem,
-                total_classes=30,
+                total_classes=0,
                 faculty_name=data.name
             )
             db.add(sub)
@@ -218,7 +218,7 @@ async def update_faculty(email: str, data: FacultyCreate, db: AsyncSession = Dep
                 name=s_name,
                 code=s_name[:3].upper() + str(sem) + "01",
                 semester=sem,
-                total_classes=30,
+                total_classes=0,
                 faculty_name=data.name
             )
             db.add(sub)

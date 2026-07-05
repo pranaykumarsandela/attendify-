@@ -7,6 +7,7 @@ export default function ParentDashboard() {
   const [profile] = useState(JSON.parse(localStorage.getItem('profile') || '{}'));
   const [attendance, setAttendance] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [trends, setTrends] = useState([]);
   
   useEffect(() => {
     if (profile.student_roll_no) {
@@ -17,14 +18,43 @@ export default function ParentDashboard() {
       client.get(`/api/alerts/${profile.student_roll_no}`)
         .then(res => setAlerts(res.data))
         .catch(console.error);
+
+      client.get(`/api/students/${profile.student_roll_no}/attendance/calendar`)
+        .then(res => {
+          const calData = res.data;
+          const monthlyStats = {};
+          
+          Object.entries(calData).forEach(([dateStr, status]) => {
+            const date = new Date(dateStr);
+            const monthName = date.toLocaleString('default', { month: 'short' });
+            if (!monthlyStats[monthName]) {
+              monthlyStats[monthName] = { present: 0, total: 0 };
+            }
+            monthlyStats[monthName].total += 1;
+            if (status === 'present') {
+              monthlyStats[monthName].present += 1;
+            }
+          });
+          
+          const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const calculatedTrends = Object.entries(monthlyStats).map(([month, stats]) => ({
+            month,
+            attendance: Math.round((stats.present / stats.total) * 100)
+          })).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+          
+          setTrends(calculatedTrends);
+        })
+        .catch(console.error);
     }
   }, [profile.student_roll_no]);
 
-  const mockTrends = [
-    { month: 'Jan', attendance: 85 },
-    { month: 'Feb', attendance: 78 },
-    { month: 'Mar', attendance: 82 },
-    { month: 'Apr', attendance: 71 },
+  const totalClasses = attendance.reduce((acc, curr) => acc + curr.total, 0);
+  const totalPresent = attendance.reduce((acc, curr) => acc + curr.present, 0);
+  const overallPercentage = totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 0;
+
+  // Use dynamic trends if available, otherwise fallback to current month using overall percentage
+  const chartData = trends.length > 0 ? trends : [
+    { month: new Date().toLocaleString('default', { month: 'short' }), attendance: overallPercentage || 100 }
   ];
 
   return (
@@ -59,7 +89,7 @@ export default function ParentDashboard() {
           </div>
           <div className="h-56 w-full flex-1 min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockTrends}>
+              <BarChart data={chartData}>
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#cbd5e1', fontSize: 11, fontWeight: 700}} dy={8} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#cbd5e1', fontSize: 11, fontWeight: 700}} domain={[0, 100]} />
                 <Tooltip 
