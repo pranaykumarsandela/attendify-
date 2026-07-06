@@ -156,10 +156,15 @@ async def camera_stream(websocket: WebSocket):
                         })
                         
                     # Send faces coordinates and labels to client for 30fps overlay rendering
-                    await websocket.send_json({
-                        "type": "faces",
-                        "faces": faces_info
-                    })
+                    try:
+                        await websocket.send_json({
+                            "type": "faces",
+                            "faces": faces_info
+                        })
+                    except RuntimeError as e:
+                        if 'Cannot call "send"' in str(e):
+                            break
+                        raise
                     
                     # Direct database write for recognized faces
                     if subject_id is not None:
@@ -228,19 +233,24 @@ async def camera_stream(websocket: WebSocket):
                                     logger.error(f"Error marking attendance inside websocket loop: {db_err}")
                                     
                     # Send identified/unknown status message triggers to client
-                    for f in faces_info:
-                        if f['roll_no'] != "unknown" and f['roll_no'] != "spoof":
-                            await websocket.send_json({
-                                "type": "detected",
-                                "roll_no": f['roll_no'],
-                                "confidence": f['confidence'],
-                                "subject_id": subject_id
-                            })
-                        elif f['roll_no'] == "unknown":
-                            await websocket.send_json({
-                                "type": "unknown",
-                                "confidence": f['confidence']
-                            })
+                    try:
+                        for f in faces_info:
+                            if f['roll_no'] != "unknown" and f['roll_no'] != "spoof":
+                                await websocket.send_json({
+                                    "type": "detected",
+                                    "roll_no": f['roll_no'],
+                                    "confidence": f['confidence'],
+                                    "subject_id": subject_id
+                                })
+                            elif f['roll_no'] == "unknown":
+                                await websocket.send_json({
+                                    "type": "unknown",
+                                    "confidence": f['confidence']
+                                })
+                    except RuntimeError as e:
+                        if 'Cannot call "send"' in str(e):
+                            break
+                        raise
     except WebSocketDisconnect:
         pass
     except Exception as e:
