@@ -162,6 +162,8 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
             existing = res_ex.scalars().first()
             
             if not existing or existing.status == 'partial':
+                is_partial = existing and existing.status == 'partial'
+                
                 if not existing:
                     absent_record = models.Attendance(
                         roll_no=st.roll_no,
@@ -173,15 +175,21 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                         camera_source='system_batch'
                     )
                     db.add(absent_record)
-                else:
-                    existing.status = 'absent'
                 
                 # Create Alert
-                message = f"your student {st.name} bearing {st.roll_no} is absent for {subject.name}"
+                if is_partial:
+                    message = f"your child {st.name}'s attendance is partailly marked for the class {subject.name}"
+                    student_message = f"student {st.name} your attendance is partially marked for the class {subject.name}"
+                    alert_title = "Partial Attendance Notice"
+                else:
+                    message = f"your student {st.name} bearing {st.roll_no} is absent for {subject.name}"
+                    student_message = f"dear student your attendance for the {subject.name} is marked as absent"
+                    alert_title = "Absence Notice"
+                
                 alert = models.Alert(
                     roll_no=st.roll_no,
-                    type="absence",
-                    title="Absence Notice",
+                    type="partial" if is_partial else "absence",
+                    title=alert_title,
                     message=message
                 )
                 db.add(alert)
@@ -190,15 +198,14 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
                 if st.parent_email:
                     target_emails.append({
                         "to": st.parent_email,
-                        "subject": "Absence Notice",
+                        "subject": alert_title,
                         "message": message
                     })
                 
                 if st.student_email:
-                    student_message = f"dear student your attendance for the {subject.name} is marked as absent"
                     target_emails.append({
                         "to": st.student_email,
-                        "subject": "Absence Notice",
+                        "subject": alert_title,
                         "message": student_message
                     })
 

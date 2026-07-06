@@ -56,7 +56,7 @@ export default function TeacherDashboard() {
   }, [activeTab, subjectId]);
 
   const handleFinalize = async () => {
-    if (!window.confirm("Are you sure you want to end the session? This will mark all un-recognized students as absent and notify their parents immediately.")) return;
+    if (!window.confirm("Are you sure you want to end the session? This will notify absent and partially marked students immediately.")) return;
     setFinalizing(true);
     try {
       const res = await client.post(`/api/alerts/finalize-daily-attendance/${subjectId}`);
