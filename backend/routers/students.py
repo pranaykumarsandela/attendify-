@@ -55,7 +55,7 @@ async def get_student_attendance(roll_no: str, db: AsyncSession = Depends(get_db
     for sub in all_subjects:
         sub_atts = [a for a in attendances if a.subject_id == sub.id]
         present = len([a for a in sub_atts if a.status == 'present'])
-        total = sub.total_classes
+        total = max(sub.total_classes, present)
         percent = (present / total * 100) if total > 0 else 0
         summary.append({
             "subject_id": sub.id,
@@ -98,18 +98,22 @@ async def get_student_calendar(roll_no: str, month: str = Query(None), db: Async
 @router.get("/api/hod/department/overview")
 async def get_dept_overview(db: AsyncSession = Depends(get_db)):
     from models import Faculty
-    res_st = await db.execute(select(Student))
+    res_st = await db.execute(select(Student).order_by(Student.created_at.desc()).limit(3))
     students = res_st.scalars().all()
     
-    res_fac = await db.execute(select(Faculty))
+    res_fac = await db.execute(select(Faculty).order_by(Faculty.id.desc()).limit(3))
     faculties = res_fac.scalars().all()
 
+    # Get total counts
+    total_st = await db.execute(select(func.count(Student.roll_no)))
+    total_fac = await db.execute(select(func.count(Faculty.id)))
+
     return {
-        "total_students": len(students),
-        "total_faculty": len(faculties),
+        "total_students": total_st.scalar() or 0,
+        "total_faculty": total_fac.scalar() or 0,
         "at_risk_count": 0,
-        "recent_students": [{"name": s.name, "roll_no": s.roll_no} for s in students[-5:]] if students else [],
-        "recent_faculty": [{"name": f.name, "email": f.email} for f in faculties[-5:]] if faculties else [],
+        "recent_students": [{"name": s.name, "roll_no": s.roll_no} for s in students],
+        "recent_faculty": [{"name": f.name, "email": f.email} for f in faculties],
     }
 
 @router.get("/api/hod/students/search")
@@ -125,15 +129,35 @@ async def search_students(q: str = "", semester: int = None, section: str = None
     result = await db.execute(query)
     students = result.scalars().all()
     
-    # Calculate overall attendance mock for demo speed
     res = []
+    
+    # Calculate real overall attendance
     for s in students:
+        # Get total classes for this student's semester/branch
+        sub_query = select(func.sum(Subject.total_classes)).where(
+            Subject.semester == s.semester
+        )
+        total_classes_res = await db.execute(sub_query)
+        total_classes = total_classes_res.scalar() or 0
+        
+        # Get total present for this student
+        att_query = select(func.count(Attendance.id)).where(
+            Attendance.roll_no == s.roll_no,
+            Attendance.status == 'present'
+        )
+        total_present_res = await db.execute(att_query)
+        total_present = total_present_res.scalar() or 0
+        
+        overall = 0.0
+        if total_classes > 0:
+            overall = round((total_present / total_classes) * 100, 1)
+            
         res.append({
             "roll_no": s.roll_no,
             "name": s.name,
             "semester": s.semester,
             "section": s.section,
-            "overall_attendance": 80.0 # Mocked for speed
+            "overall_attendance": overall
         })
     return res
 

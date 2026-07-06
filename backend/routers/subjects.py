@@ -42,11 +42,11 @@ async def get_at_risk_students(subject_id: int, db: AsyncSession = Depends(get_d
     att_res = await db.execute(select(Attendance).where(Attendance.subject_id == subject_id))
     attendances = att_res.scalars().all()
     
-    students_res = await db.execute(select(Student))
+    students_res = await db.execute(select(Student).where(Student.semester == subject.semester))
     students = {s.roll_no: s for s in students_res.scalars().all()}
     
-    # Calculate per student
-    student_stats = {}
+    # Calculate per student, initializing all valid students to 0
+    student_stats = {roll_no: 0 for roll_no in students.keys()}
     for a in attendances:
         if a.roll_no not in student_stats:
             student_stats[a.roll_no] = 0
@@ -55,7 +55,7 @@ async def get_at_risk_students(subject_id: int, db: AsyncSession = Depends(get_d
             
     at_risk = []
     for roll_no, present_count in student_stats.items():
-        total = subject.total_classes
+        total = max(subject.total_classes, present_count)
         if total == 0: continue
         percent = present_count / total
         if percent < 0.75:

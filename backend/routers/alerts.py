@@ -39,11 +39,12 @@ async def bulk_low_attendance_alert(db: AsyncSession = Depends(get_db)):
     for student in students:
         # Calculate overall attendance
         student_subjects = [s for s in subjects if s.semester == student.semester]
-        total_possible = sum([s.total_classes for s in student_subjects])
+        student_atts = [a for a in all_attendances if a.roll_no == student.roll_no and a.status == 'present']
+        
+        total_possible = sum([max(s.total_classes, len([a for a in student_atts if a.subject_id == s.id])) for s in student_subjects])
         if total_possible == 0:
             continue
             
-        student_atts = [a for a in all_attendances if a.roll_no == student.roll_no and a.status == 'present']
         present_count = len(student_atts)
         
         overall_percent = (present_count / total_possible) * 100
