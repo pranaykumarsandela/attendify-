@@ -26,7 +26,7 @@ export default function TeacherDashboard() {
           if (exists) {
             return prev.map(r => 
               r.roll_no === data.roll_no 
-                ? { ...r, marked_at: data.timestamp } 
+                ? { ...r, marked_at: data.timestamp, status: data.status } 
                 : r
             );
           }

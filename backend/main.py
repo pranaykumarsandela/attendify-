@@ -187,32 +187,31 @@ async def camera_stream(websocket: WebSocket):
                                         
                                         if existing:
                                             # Wait, existing record logic
-                                            if existing.status == 'partial':
-                                                time_diff = datetime.utcnow() - existing.marked_at
-                                                if time_diff.total_seconds() >= 45 * 60:
-                                                    existing.status = 'present'
-                                                    existing.outgoing_at = datetime.utcnow()
-                                                    await db_session.commit()
-                                                    
-                                                    student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
-                                                    student = student_res.scalars().first()
-                                                    student_name = student.name if student else "Unknown Student"
-                                                    
-                                                    await manager.broadcast({
-                                                        "type": "marked",
-                                                        "roll_no": f['roll_no'],
-                                                        "name": student_name,
-                                                        "subject_id": subject_id,
-                                                        "timestamp": existing.outgoing_at.replace(tzinfo=timezone.utc).isoformat(),
-                                                        "status": "present"
-                                                    })
-                                            elif existing.status == 'present':
-                                                # Already full present, just rate limit db writes (e.g. for last seen time)
-                                                time_diff = datetime.utcnow() - (existing.outgoing_at or existing.marked_at)
-                                                if time_diff.total_seconds() > 15:
-                                                    existing.outgoing_at = datetime.utcnow()
-                                                    await db_session.commit()
-                                                    # No need to broadcast again, they are already present
+                                            last_seen = existing.outgoing_at or existing.marked_at
+                                            time_diff = datetime.utcnow() - last_seen
+                                            
+                                            if time_diff.total_seconds() > 15:
+                                                existing.outgoing_at = datetime.utcnow()
+                                                
+                                                if existing.status == 'partial':
+                                                    total_duration = datetime.utcnow() - existing.marked_at
+                                                    if total_duration.total_seconds() >= 45 * 60:
+                                                        existing.status = 'present'
+                                                
+                                                await db_session.commit()
+                                                
+                                                student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
+                                                student = student_res.scalars().first()
+                                                student_name = student.name if student else "Unknown Student"
+                                                
+                                                await manager.broadcast({
+                                                    "type": "marked",
+                                                    "roll_no": f['roll_no'],
+                                                    "name": student_name,
+                                                    "subject_id": subject_id,
+                                                    "timestamp": existing.outgoing_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                    "status": existing.status
+                                                })
                                         else:
                                             # First scan, insert as partial
                                             new_att = Attendance(
