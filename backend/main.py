@@ -186,31 +186,41 @@ async def camera_stream(websocket: WebSocket):
                                         existing = res_att.scalars().first()
                                         
                                         if existing:
-                                            # Rate limit Neon DB updates to avoid transactional locks (only update every 15s)
-                                            time_diff = datetime.utcnow() - existing.marked_at if existing.marked_at else None
-                                            if time_diff is None or time_diff.total_seconds() > 15:
-                                                existing.marked_at = datetime.utcnow()
-                                                await db_session.commit()
-                                                
-                                                student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
-                                                student = student_res.scalars().first()
-                                                student_name = student.name if student else "Unknown Student"
-                                                
-                                                await manager.broadcast({
-                                                    "type": "marked",
-                                                    "roll_no": f['roll_no'],
-                                                    "name": student_name,
-                                                    "subject_id": subject_id,
-                                                    "timestamp": existing.marked_at.replace(tzinfo=timezone.utc).isoformat() if existing.marked_at else datetime.now(timezone.utc).isoformat(),
-                                                    "status": existing.status
-                                                })
+                                            # Wait, existing record logic
+                                            if existing.status == 'partial':
+                                                time_diff = datetime.utcnow() - existing.marked_at
+                                                if time_diff.total_seconds() >= 45 * 60:
+                                                    existing.status = 'present'
+                                                    existing.outgoing_at = datetime.utcnow()
+                                                    await db_session.commit()
+                                                    
+                                                    student_res = await db_session.execute(select(Student).where(Student.roll_no == f['roll_no']))
+                                                    student = student_res.scalars().first()
+                                                    student_name = student.name if student else "Unknown Student"
+                                                    
+                                                    await manager.broadcast({
+                                                        "type": "marked",
+                                                        "roll_no": f['roll_no'],
+                                                        "name": student_name,
+                                                        "subject_id": subject_id,
+                                                        "timestamp": existing.outgoing_at.replace(tzinfo=timezone.utc).isoformat(),
+                                                        "status": "present"
+                                                    })
+                                            elif existing.status == 'present':
+                                                # Already full present, just rate limit db writes (e.g. for last seen time)
+                                                time_diff = datetime.utcnow() - (existing.outgoing_at or existing.marked_at)
+                                                if time_diff.total_seconds() > 15:
+                                                    existing.outgoing_at = datetime.utcnow()
+                                                    await db_session.commit()
+                                                    # No need to broadcast again, they are already present
                                         else:
+                                            # First scan, insert as partial
                                             new_att = Attendance(
                                                 roll_no=f['roll_no'],
                                                 subject_id=subject_id,
                                                 date=date.today(),
                                                 period=current_period,
-                                                status='present',
+                                                status='partial',
                                                 confidence=f['confidence'],
                                                 marked_at=datetime.utcnow()
                                             )
@@ -227,7 +237,7 @@ async def camera_stream(websocket: WebSocket):
                                                 "name": student_name,
                                                 "subject_id": subject_id,
                                                 "timestamp": new_att.marked_at.replace(tzinfo=timezone.utc).isoformat() if new_att.marked_at else datetime.now(timezone.utc).isoformat(),
-                                                "status": "present"
+                                                "status": "partial"
                                             })
                                 except Exception as db_err:
                                     logger.error(f"Error marking attendance inside websocket loop: {db_err}")

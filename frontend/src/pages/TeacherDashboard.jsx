@@ -231,11 +231,16 @@ export default function TeacherDashboard() {
                               {rec.status === 'present' ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold shadow-sm">
                                   <CheckCircle2 className="w-3 h-3" />
-                                  Present
+                                  Present (Completed)
+                                </span>
+                              ) : rec.status === 'partial' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold shadow-sm">
+                                  <Clock className="w-3 h-3" />
+                                  Waiting Outgoing...
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-[10px] font-bold shadow-sm">
-                                  <Clock className="w-3 h-3" />
+                                  <AlertTriangle className="w-3 h-3" />
                                   Absent
                                 </span>
                               )}

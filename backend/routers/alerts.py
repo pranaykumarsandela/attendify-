@@ -161,17 +161,20 @@ async def finalize_daily_attendance(subject_id: int, db: AsyncSession = Depends(
             )
             existing = res_ex.scalars().first()
             
-            if not existing:
-                absent_record = models.Attendance(
-                    roll_no=st.roll_no,
-                    subject_id=subject_id,
-                    date=today,
-                    period=current_period,
-                    status='absent',
-                    confidence=0.0,
-                    camera_source='system_batch'
-                )
-                db.add(absent_record)
+            if not existing or existing.status == 'partial':
+                if not existing:
+                    absent_record = models.Attendance(
+                        roll_no=st.roll_no,
+                        subject_id=subject_id,
+                        date=today,
+                        period=current_period,
+                        status='absent',
+                        confidence=0.0,
+                        camera_source='system_batch'
+                    )
+                    db.add(absent_record)
+                else:
+                    existing.status = 'absent'
                 
                 # Create Alert
                 message = f"your student {st.name} bearing {st.roll_no} is absent for {subject.name}"

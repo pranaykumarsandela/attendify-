@@ -52,9 +52,10 @@ class Attendance(Base):
     subject_id = Column(Integer, ForeignKey('subjects.id'))
     date = Column(Date, nullable=False)
     period = Column(Integer) # 1 through 8
-    status = Column(String, default='present') # 'present','absent','late'
+    status = Column(String, default='partial') # 'partial', 'present', 'absent', 'late'
     confidence = Column(Float) # face match score
-    marked_at = Column(DateTime, default=datetime.now)
+    marked_at = Column(DateTime, default=datetime.now) # incoming time
+    outgoing_at = Column(DateTime, nullable=True) # outgoing time
     camera_source = Column(String, default='laptop_webcam')
     
     __table_args__ = (UniqueConstraint('roll_no', 'subject_id', 'date', 'period', name='_student_subject_date_period_uc'),)
