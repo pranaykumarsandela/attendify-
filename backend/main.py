@@ -188,7 +188,7 @@ async def camera_stream(websocket: WebSocket):
                                         if existing:
                                             # Wait, existing record logic
                                             last_seen = existing.outgoing_at or existing.marked_at
-                                            time_diff = datetime.utcnow() - last_seen
+                                            time_diff = datetime.utcnow() - (last_seen if last_seen else datetime.min)
                                             
                                             if time_diff.total_seconds() > 15:
                                                 existing.outgoing_at = datetime.utcnow()
@@ -197,6 +197,9 @@ async def camera_stream(websocket: WebSocket):
                                                     total_duration = datetime.utcnow() - existing.marked_at
                                                     if total_duration.total_seconds() >= 5 * 60:
                                                         existing.status = 'present'
+                                                elif existing.status == 'absent':
+                                                    existing.status = 'partial'
+                                                    existing.marked_at = datetime.utcnow()
                                                 
                                                 await db_session.commit()
                                                 
