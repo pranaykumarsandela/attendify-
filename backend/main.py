@@ -195,7 +195,7 @@ async def camera_stream(websocket: WebSocket):
                                                 
                                                 if existing.status == 'partial':
                                                     total_duration = datetime.utcnow() - existing.marked_at
-                                                    if total_duration.total_seconds() >= 45 * 60:
+                                                    if total_duration.total_seconds() >= 5 * 60:
                                                         existing.status = 'present'
                                                 
                                                 await db_session.commit()
