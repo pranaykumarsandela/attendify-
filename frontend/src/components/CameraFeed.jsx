@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import client from '../api/client';
 import useWebSocket from '../hooks/useWebSocket';
 
-export default function CameraFeed({ subjectId }) {
+export default function CameraFeed({ subjectId, duration }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Camera offline");
   const [detectedFaces, setDetectedFaces] = useState([]);
@@ -71,7 +71,8 @@ export default function CameraFeed({ subjectId }) {
           sendMessage({
             type: 'frame',
             data: base64Data,
-            subject_id: subjectId
+            subject_id: subjectId,
+            duration: duration
           });
         }
       }, 100); // Check/send every 100ms (up to 10 fps)

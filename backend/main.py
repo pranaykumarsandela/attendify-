@@ -102,10 +102,17 @@ async def camera_stream(websocket: WebSocket):
             if msg.get("type") == "frame":
                 base64_data = msg.get("data")
                 subject_id = msg.get("subject_id")
+                duration_mins = msg.get("duration", 45)
+                
                 try:
                     subject_id = int(subject_id) if subject_id is not None else None
                 except ValueError:
                     subject_id = None
+                
+                try:
+                    duration_mins = int(duration_mins)
+                except ValueError:
+                    duration_mins = 45
 
                 if not base64_data:
                     continue
@@ -195,7 +202,7 @@ async def camera_stream(websocket: WebSocket):
                                                 
                                                 if existing.status == 'partial':
                                                     total_duration = datetime.utcnow() - existing.marked_at
-                                                    if total_duration.total_seconds() >= 5 * 60:
+                                                    if total_duration.total_seconds() >= duration_mins * 60:
                                                         existing.status = 'present'
                                                 elif existing.status == 'absent':
                                                     existing.status = 'partial'

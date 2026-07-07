@@ -12,6 +12,7 @@ export default function TeacherDashboard() {
     return null;
   });
   const [todaysRoll, setTodaysRoll] = useState([]);
+  const [duration, setDuration] = useState(45);
   const [atRisk, setAtRisk] = useState([]);
   const [finalizing, setFinalizing] = useState(false);
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
@@ -136,6 +137,20 @@ export default function TeacherDashboard() {
             )}
           </select>
         </div>
+        
+        <div className="w-full md:w-auto">
+          <select 
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            className="bg-black/40 border-2 border-white/10 text-emerald-100 font-bold text-xs rounded-lg focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 block w-full md:w-40 p-2.5 transition-all shadow-inner outline-none"
+          >
+            {[5, 10, 15, 30, 45, 60, 90, 120].map(mins => (
+              <option key={mins} value={mins} className="bg-slate-900">
+                {mins} Minutes
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -175,7 +190,7 @@ export default function TeacherDashboard() {
                 </h3>
               </div>
               <div className="rounded-2xl overflow-hidden border border-white/20 shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-black/50 relative">
-                <CameraFeed subjectId={subjectId} />
+                <CameraFeed subjectId={subjectId} duration={duration} />
               </div>
             </div>
             
