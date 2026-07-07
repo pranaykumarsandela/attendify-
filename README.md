@@ -1,242 +1,150 @@
-# FRAS Demo — Face Recognition Attendance System
+# 📷 Attendify — Face Recognition Attendance System
 
-## Complete Command Reference
+<div align="center">
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" />
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" />
+</div>
 
-══════════════════════════════════════════════════════════════
-FIRST-TIME SETUP (run once)
-══════════════════════════════════════════════════════════════
+<p align="center">
+  <strong>An intelligent, seamless, and automated attendance tracking system powered by real-time Facial Recognition.</strong>
+</p>
 
-# 1. Clone / unzip project
-git clone https://github.com/yourname/fras.git
-cd fras
+---
 
-# 2. Create environment file
+## 🌟 Features
+
+- **Real-Time Facial Recognition**: Utilizes deep learning and FAISS indexing for lightning-fast and highly accurate face identification.
+- **Two-Step Verification**: Automates the classroom lifecycle by tracking the time a student enters and checking the elapsed time before marking them `Present`.
+- **Intelligent Alerts**: Automatically triggers customized warning emails to students and their parents if they fall below attendance thresholds or are marked absent.
+- **Smart Faculty Dashboard**: A beautifully designed React & Tailwind CSS interface offering live video feeds, real-time live rolls, and analytics.
+- **Zero-Downtime Deployment**: Backend powered by a high-performance ASGI architecture on HuggingFace and frontend edge-deployed on Vercel.
+
+---
+
+## 🚀 Quick Start Guide
+
+> [!NOTE]
+> If you're looking to run this project locally, ensure you have Python 3.11+, Node.js, and Docker installed.
+
+### 1. Environment Setup
+Clone the repository and set up your environment variables:
+```bash
+git clone https://github.com/pranaykumarsandela/attendify-.git
+cd attendify-
 cp .env.example .env
-# Edit .env: fill in DB_PASSWORD, REDIS_PASSWORD, SECRET_KEY
-nano .env
-
-# 3. Generate a strong SECRET_KEY
+```
+Generate a secure key for your `.env` file:
+```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
-# Copy output into .env SECRET_KEY=
+```
 
-# 4. Start infrastructure (PostgreSQL + Redis)
+### 2. Infrastructure Setup (Docker)
+Start the required PostgreSQL and Redis services:
+```bash
 docker compose up -d postgres redis
+```
 
-# Wait for postgres to be healthy
-docker compose ps  # check status column
-
-# 5. Install backend dependencies
+### 3. Backend Setup
+```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate        # Mac/Linux
-# venv\Scripts\activate         # Windows
-
+source venv/bin/activate        # Mac/Linux (Use venv\Scripts\activate on Windows)
 pip install -r requirements.txt
 
-# 6. Run database migrations
+# Run migrations and seed the database
 alembic upgrade head
-# Expected: "Running upgrade -> 001_initial_schema, OK"
-
-# 7. Seed demo data
 python seed.py
-# Expected: "Seeded: 20 students, 6 subjects, ~3600 attendance records"
+```
 
-# 8. Install frontend dependencies
+### 4. Frontend Setup
+```bash
 cd ../frontend
 npm install
+```
 
-══════════════════════════════════════════════════════════════
-DAILY DEVELOPMENT (run these every session)
-══════════════════════════════════════════════════════════════
+---
 
-# Terminal 1 — Start backend
+## 💻 Daily Development Workflow
+
+Run these commands simultaneously in separate terminal windows:
+
+### Terminal 1: Backend
+```bash
 cd backend
 source venv/bin/activate
 uvicorn app.main:app --reload --port 8000 --log-level info
+```
 
-# Terminal 2 — Start frontend
+### Terminal 2: Frontend
+```bash
 cd frontend
 npm run dev
+```
 
-# Open in browser
-open http://localhost:5173
+Open `http://localhost:5173` in your browser. 
+**Demo Credentials:**
+- **Teacher:** `priya@college.edu` / `Demo@1234`
+- **HOD:** `venkat@college.edu` / `Demo@1234`
+- **Student:** `21CS001@college.edu` / `Demo@1234`
 
-# Demo login credentials
-# Teacher: priya@college.edu / Demo@1234
-# HOD:     venkat@college.edu / Demo@1234
-# Student: 21CS001@college.edu / Demo@1234
+---
 
-══════════════════════════════════════════════════════════════
-FACE REGISTRATION (do this before testing camera)
-══════════════════════════════════════════════════════════════
+## ⚙️ Face Registration Process
 
-# Option A: Via UI (recommended)
-# 1. Login as HOD (venkat@college.edu / Demo@1234)
-# 2. Navigate to /hod → Register Student
-# 3. Enter roll number: 21CS001
-# 4. Click "Start Camera" — allow camera permission
-# 5. Click "Capture" 5 times (move face slightly each time)
-# 6. Click "Register" — wait for success message
+> [!IMPORTANT]
+> You must register a student's face before the AI can recognize them.
 
-# Option B: Via API (testing)
-curl -X POST http://localhost:8000/api/register/face \
-  -H "Cookie: token=YOUR_TOKEN_HERE" \
-  -F "roll_no=21CS001" \
-  -F "files=@photo1.jpg" \
-  -F "files=@photo2.jpg" \
-  -F "files=@photo3.jpg" \
-  -F "files=@photo4.jpg" \
-  -F "files=@photo5.jpg"
+1. Login to the application as the **HOD**.
+2. Navigate to the **Register Student** panel.
+3. Enter the student's Roll Number (e.g., `21CS001`).
+4. Click **Start Camera** and grant browser permissions.
+5. Click **Capture** 5 times while having the student slightly move their head to ensure the neural network captures 3D depth geometry.
+6. Click **Register** to generate their embeddings in the database.
 
-# Verify registration
-curl http://localhost:8000/api/auth/me -b "token=..."
-# Then check:
-psql -h localhost -U fras_user fras \
-  -c "SELECT roll_no, face_registered, faiss_index FROM students WHERE roll_no='21CS001';"
+---
 
-══════════════════════════════════════════════════════════════
-TESTING LIVE ATTENDANCE
-══════════════════════════════════════════════════════════════
+## 🛠 Testing Live Attendance
 
-# 1. Login as Teacher
-open http://localhost:5173/teacher
+1. Login as a **Teacher** and select a subject (e.g., *Computer Networks*).
+2. Click **Start Camera**.
+3. Stand in front of the webcam.
+4. The system will process your face frame-by-frame:
+   - ⏳ **Waiting Outgoing... (Yellow)**: First scan completed.
+   - ✅ **Present (Completed) (Green)**: Second scan completed (simulating end of class).
+5. When the faculty clicks **End & Alert**, any student who didn't complete the full cycle will automatically receive a customized email regarding their absence or partial completion!
 
-# 2. Select subject from dropdown (e.g. "Computer Networks")
-# 3. Select period (e.g. 1)
-# 4. Click "Start Recording"
-# 5. Stand in front of webcam
-# 6. Watch for:
-#    - Yellow box: face detected, confirming identity (1-8 frames)
-#    - Green box + name: confirmed, attendance marking
-#    - Live ticker below camera: "✓ Arjun Kumar — 94%"
+---
 
-# Verify in database (real-time):
-psql -h localhost -U fras_user fras \
-  -c "SELECT s.roll_no, s.name, a.marked_at, a.confidence FROM attendance a JOIN students s ON s.id=a.student_id WHERE a.date=CURRENT_DATE ORDER BY a.marked_at DESC LIMIT 5;"
+## 🧑‍💻 Useful Commands & Troubleshooting
 
-# Check student dashboard updated:
-open http://localhost:5173  # login as the student you just marked
-
-══════════════════════════════════════════════════════════════
-DATABASE MANAGEMENT
-══════════════════════════════════════════════════════════════
-
-# Connect to PostgreSQL
-psql -h localhost -U fras_user fras
-
-# Useful queries:
-# Today's attendance count
+### Database Queries
+Connect to PostgreSQL: `psql -h localhost -U fras_user fras`
+```sql
+-- Today's attendance count
 SELECT COUNT(*) FROM attendance WHERE date=CURRENT_DATE;
 
-# Students below 75% in any subject
-SELECT * FROM student_attendance_summary WHERE percentage < 75;
-
-# Check all registered students
+-- Check all registered students
 SELECT roll_no, name, face_registered, faiss_index FROM students;
+```
 
-# Department overview
-SELECT semester, ROUND(AVG(percentage),1) as avg_pct,
-  COUNT(*) FILTER (WHERE percentage < 75) as at_risk
-FROM student_attendance_summary GROUP BY semester;
+### Camera Issues (RTSP Integration)
+To use a physical RTSP IP Camera instead of a web camera, modify your `.env`:
+```env
+USE_RTSP=true
+RTSP_URL=rtsp://admin:pass@192.168.1.64:554/stream1
+```
 
-# Reset today's attendance (for re-testing)
-DELETE FROM attendance WHERE date=CURRENT_DATE;
-
-# Reset all attendance (full reset)
-TRUNCATE attendance;
-
-# Check Redis sessions
-docker exec fras-redis-1 redis-cli -a YOUR_REDIS_PASS KEYS "session:*"
-docker exec fras-redis-1 redis-cli -a YOUR_REDIS_PASS KEYS "marked:*"
-
-══════════════════════════════════════════════════════════════
-RTSP CAMERA TESTING
-══════════════════════════════════════════════════════════════
-
-# Test RTSP URL works before adding to .env
-ffplay -rtsp_transport tcp "rtsp://admin:password@192.168.1.64:554/Streaming/Channels/101"
-
-# Switch from webcam to RTSP
-nano .env
-# Change: USE_RTSP=true
-# Change: RTSP_URL=rtsp://admin:pass@192.168.1.64:554/stream1
-# Restart backend: Ctrl+C then uvicorn app.main:app --reload --port 8000
-
-# Find camera IP on local network
-nmap -sn 192.168.1.0/24 | grep -E "report for|MAC"
-
-# Test with OpenCV directly
-python3 -c "
-import cv2
-cap = cv2.VideoCapture('rtsp://admin:pass@IP:554/stream1', cv2.CAP_FFMPEG)
-ret, frame = cap.read()
-print('Connected:', ret, 'Shape:', frame.shape if ret else 'N/A')
-cap.release()
-"
-
-══════════════════════════════════════════════════════════════
-TROUBLESHOOTING COMMANDS
-══════════════════════════════════════════════════════════════
-
-# Check all services running
-docker compose ps
-
-# View backend logs (live)
-# uvicorn shows logs in terminal — look for:
-#   "FRAS starting — FAISS index: N students"
-#   "Pipeline started for subject: X period: Y"
-#   "Marked attendance: ROLL_NO score: 0.87"
-
-# Check WebSocket connection
-# Open browser DevTools → Network → WS tab
-# Should see /ws/stream with "101 Switching Protocols"
-# Messages should stream continuously
-
-# Verify no localStorage
-# Browser DevTools → Application → Local Storage → localhost:5173
-# Must be completely EMPTY
-
-# Check cookie is set correctly
-# Browser DevTools → Application → Cookies → localhost:5173
-# Should see: Name=token, HttpOnly=checked, SameSite=Lax
-
-# Backend health check
-curl http://localhost:8000/health
-# Expected: {"status":"ok","pipeline":false,"faiss_total":0,"connected_ws":0}
-
-# Reset FAISS index completely (if corrupted)
+### Resetting AI Embeddings
+If your FAISS index becomes corrupted during testing, reset it via the backend:
+```bash
 rm backend/app/data/embeddings/index.faiss
 rm backend/app/data/embeddings/index.json
-# Then run via psql:
-# UPDATE students SET face_registered=FALSE, faiss_index=NULL;
-# DELETE FROM face_embeddings;
-# Restart backend — FAISS will rebuild from face_embeddings table (empty now)
-# Re-register all students
+```
+*(You will need to manually delete the entries in the `face_embeddings` table and re-register students).*
 
-══════════════════════════════════════════════════════════════
-PRODUCTION DEPLOY COMMANDS
-══════════════════════════════════════════════════════════════
-
-# Build for production
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Run migrations on prod
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
-
-# Seed prod database
-docker compose -f docker-compose.prod.yml exec backend python seed.py
-
-# View prod logs
-docker compose -f docker-compose.prod.yml logs -f backend
-
-# Backup database
-docker exec fras-postgres-1 pg_dump -U fras_user fras > backup_$(date +%Y%m%d).sql
-
-# Update production (zero-downtime)
-git pull origin main
-docker compose -f docker-compose.prod.yml build backend frontend
-docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
-
-# SSL certificate renewal
-docker run --rm -v certbot_webroot:/var/www/certbot certbot/certbot renew
-docker compose -f docker-compose.prod.yml restart nginx
+---
+<div align="center">
+Built with ❤️ for modern education.
+</div>
